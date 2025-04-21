@@ -109,4 +109,3 @@ message(STATUS "Project version: ${PROJECT_VERSION}")
 
 # Install the _core module into the hpyx directory.
 install(TARGETS _core DESTINATION hpyx)
-

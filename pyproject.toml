@@ -93,7 +93,7 @@ disallow_incomplete_defs = true
 
 # Ruff options
 [tool.ruff]
-exclude = ["tests/**", "testing.py"]
+exclude = ["tests/**", "testing.py", "**/_version.py"]
 line-length = 100
 
 [tool.ruff.lint]

@@ -47,4 +47,3 @@ pre-commit = "*"
 
 [feature.test.dependencies]
 pytest = "*"
-
