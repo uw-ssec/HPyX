@@ -3,7 +3,7 @@ build-backend = "scikit_build_core.build"
 requires = ["scikit-build-core >=0.9.5", "nanobind", "setuptools_scm >=8"]
 
 [project]
-name = "hpyx"
+name = "HPyX"
 dynamic = ["version"]
 description = "Python Binding for HPX C++ library"
 readme = "README.md"
