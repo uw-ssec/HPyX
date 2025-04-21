@@ -1,31 +1,29 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+build-backend = "scikit_build_core.build"
+requires = ["scikit-build-core >=0.9.5", "nanobind", "setuptools_scm >=8"]
 
 [project]
-name = "ssec_project"
+name = "hpyx"
 dynamic = ["version"]
-description = "Python project repository template for developing python package."
+description = "Python Binding for HPX C++ library"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = ["requests", "pandas"]
+dependencies = ["numpy"]
 
 [project.optional-dependencies]
 dev = [
     "pre-commit",
-    "nox",
-    "pytest>=6",
+    "pytest>=8",
     "pytest-cov",
     "pytest-xdist",
     "pytest-mock",
@@ -38,40 +36,48 @@ docs = [
     "jupyter-book",
     "numpydoc",
 ]
-all = ["ssec_project[dev,docs]"]
+all = ["hpyx[dev,docs]"]
 
 [project.license]
 file = "LICENSE"
 
 [project.urls]
-Homepage = "https://github.com/uw-ssec/python-project-template"
-Documentation = "https://ssec-python-project-template.readthedocs.io"
-Repository = "https://github.com/uw-ssec/python-project-template.git"
-Issues = "https://github.com/uw-ssec/python-project-template/issues"
+Homepage = "https://github.com/uw-ssec/HPyX"
+Documentation = "https://ssec-hypx.readthedocs.io"
+Repository = "https://github.com/uw-ssec/hpyx.git"
+Issues = "https://github.com/uw-ssec/HPyX/issues"
 
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/ssec_project/version.py"
-
-[tool.hatch.version.raw-options]
+# Setuptools SCM Options
+[tool.setuptools_scm]
 local_scheme = "no-local-version"
+write_to = "src/hpyx/_version.py"
 
-[tool.hatch.build.targets.sdist]
-exclude = ["/tests"]
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hpyx", "hpyx.*"]
 
+# Scikit-build options
+[tool.scikit-build]
+wheel.expand-macos-universal-tags = true
+cmake.source-dir = "."
+sdist.exclude = [".pixi"]
+
+minimum-version = "build-system.requires"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+
+# Pytest options
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = ["-vvv", "-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = false
 filterwarnings = ["error"]
-log_cli_level = "info"
+log_cli_level = "INFO"
 testpaths = ["tests"]
 
+# Mypy options
 [tool.mypy]
 files = ["src", "tests"]
-python_version = "3.11"
+python_version = "3.13"
 warn_unused_configs = true
 strict = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
@@ -80,12 +86,13 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [[tool.mypy.overrides]]
-module = "ssec_project.*"
+module = ["hpyx.*"]
+ignore_missing_imports = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
+# Ruff options
 [tool.ruff]
-src = ["src"]
 exclude = ["tests/**", "testing.py"]
 line-length = 100
 

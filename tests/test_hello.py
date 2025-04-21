@@ -1,4 +1,4 @@
-from ssec_project import hello
+from hpyx import hello
 
 
 def test_say_hello():
