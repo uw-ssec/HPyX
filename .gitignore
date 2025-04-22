@@ -132,7 +132,7 @@ dmypy.json
 .vscode
 
 # Local Package
-version.py
+**/_version.py
 
 # pixi environments
 .pixi
