@@ -49,7 +49,8 @@ python= "3.13.*"
 build = ">=1.2.2.post1, <2"
 
 [feature.lint.dependencies]
-pre-commit = "*"
+pre-commit = ">=4.2.0,<5"
+identify = ">=1.2.2,<2"
 
 [feature.test.dependencies]
-pytest = "*"
+pytest = ">=8.3.5,<9"
