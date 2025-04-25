@@ -29,7 +29,7 @@ clang = ">=17.0.6,<21"
 hpx = ">=1.10.0,<2"
 
 [environments]
-default = ["test", "lint", "build", "python", "py313t"]
+default = ["test", "lint", "build", "python", "py313"]
 py313t = ["test", "python", "py313t"]
 py313 = ["test", "python", "py313"]
 
