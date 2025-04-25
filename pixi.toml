@@ -26,17 +26,23 @@ cmake = ">=3.15,<3.29"
 cxx-compiler = ">=1.8.0,<2"
 make = ">=4.4.1,<5"
 clang = ">=17.0.6,<21"
+hpx = ">=1.10.0,<2"
 
 [environments]
-default = ["test", "lint", "build", "python", "py313"]
+default = ["test", "lint", "build", "python", "py313t"]
+py313t = ["test", "python", "py313t"]
+py313 = ["test", "python", "py313"]
 
 # Python Package Dependencies
 [feature.python.dependencies]
 pip = ">=25.0.1,<26"
 
 # Python Versions Dependencies
-[feature.py313.dependencies]
+[feature.py313t.dependencies]
 python-freethreading= "3.13.*"
+
+[feature.py313.dependencies]
+python= "3.13.*"
 
 # Build Dependencies
 [feature.build.pypi-dependencies]
