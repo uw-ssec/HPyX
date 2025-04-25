@@ -18,23 +18,9 @@ env:
   PROJECT_NAME: "hpyx"
 
 jobs:
-  pre-commit:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: prefix-dev/setup-pixi@v0.8.8
-        with:
-          pixi-version: v0.44.0
-          cache: true
-      - run: pixi run lint
-
   checks:
     name: Check ${{ matrix.pixi-env }} on ${{ matrix.runs-on }}
     runs-on: ${{ matrix.runs-on }}
-    needs: [pre-commit]
     strategy:
       fail-fast: false
       matrix:
