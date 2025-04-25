@@ -10,4 +10,4 @@ except ImportError:
 from . import hello
 from ._core import add
 
-__all__ = ["hello", "add"]
+__all__ = ["add", "hello"]

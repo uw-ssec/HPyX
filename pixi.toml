@@ -12,6 +12,10 @@ uninstall = "pip uninstall -y hpyx"
 
 [tasks.lint]
 cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
+depends-on = ["pre-commit-clean"]
+
+[tasks.pre-commit-clean]
+cmd = ["pre-commit", "clean"]
 
 [tasks.test]
 cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
