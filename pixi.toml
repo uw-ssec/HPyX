@@ -2,13 +2,14 @@
 authors = ["Don Setiawan", "Ayush Nag"]
 channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
-name = "HPyX"
+name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
 get-python-version = "python --version"
 install-all = 'pip install --verbose -e ".[all]"'
+install = 'pip install --verbose "."'
 uninstall = "pip uninstall -y hpyx"
 
 [tasks.lint]
@@ -35,8 +36,8 @@ nanobind = ">=2.7.0,<3"
 libboost-headers = ">=1.88.0,<2"
 
 [environments]
-py313t = ["python", "py313t"]
-py313 = ["python", "py313"]
+py313t = ["test", "python", "py313t"]
+py313 = ["test", "python", "py313"]
 build313t = ["build", "python", "py313t"]
 
 # Python Package Dependencies

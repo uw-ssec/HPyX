@@ -62,6 +62,9 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
+# Find HPX
+find_package(HPX REQUIRED)
+
 ###############################################################################
 # Configure RPATH for non-Windows platforms
 ###############################################################################
@@ -92,12 +95,14 @@ nanobind_add_module(_core FREE_THREADED src/main.cpp)
 #   nanobind_add_module(${TARGET} FREE_THREADED ${SOURCES})
 # endforeach()
 
-# # Loop through the targets and link them against the required libraries.
-# foreach(TARGET ${HPYX_TARGETS} _core)
-#   target_link_libraries(${TARGET} PRIVATE
-#     #HPX libraries??
-#   )
-# endforeach()
+# Loop through the targets and link them against the required libraries.
+foreach(TARGET ${HPYX_TARGETS} _core)
+  target_link_libraries(${TARGET} PRIVATE
+    HPX::hpx
+    HPX::wrap_main
+    HPX::iostreams_component
+  )
+endforeach()
 
 # Pass the project version as a preprocessor definition.
 target_compile_definitions(_core PRIVATE VERSION_INFO=${PROJECT_VERSION})

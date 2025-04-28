@@ -8,6 +8,6 @@ except ImportError:
     __version__ = "0.0.0"  # Fallback version
 
 from . import hello
-from ._core import add
+from ._core import add, hpx_hello
 
-__all__ = ["add", "hello"]
+__all__ = ["add", "hello", "hpx_hello"]
