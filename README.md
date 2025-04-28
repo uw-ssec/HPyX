@@ -12,11 +12,16 @@
 
 ## Project Overview
 
-HPyX provides Python bindings for the HPX C++ Parallelism Library using Nanobind and leveraging Python 3.13's free-threading capabilities. The goal is to make HPX's powerful parallel processing features accessible to Python developers while achieving optimal performance through true multi-threading.
+HPyX provides Python bindings for the HPX C++ Parallelism Library using Nanobind
+and leveraging Python 3.13's free-threading capabilities. The goal is to make
+HPX's powerful parallel processing features accessible to Python developers
+while achieving optimal performance through true multi-threading.
 
 ## What is HPX?
 
-HPX (High Performance ParalleX) is a C++ Standard Library for Concurrency and Parallelism that implements modern C++ parallelism features defined by the C++ Standard. It provides:
+HPX (High Performance ParalleX) is a C++ Standard Library for Concurrency and
+Parallelism that implements modern C++ parallelism features defined by the C++
+Standard. It provides:
 
 - A unified API for local and remote parallel operations
 - Asynchronous execution through futures and dataflow
@@ -119,16 +124,21 @@ pixi run get-python-version
 
 ## Development
 
-HPyX uses Nanobind to create efficient Python bindings for the HPX C++ library. The build system is based on CMake and scikit-build-core for seamless integration between C++ and Python components.
+HPyX uses Nanobind to create efficient Python bindings for the HPX C++ library.
+The build system is based on CMake and scikit-build-core for seamless
+integration between C++ and Python components.
 
 ### Technical Approach
 
 Our approach consists of the following components:
 
-1. **Core Binding Layer**: Low-level bindings for HPX C++ core functionality using Nanobind
+1. **Core Binding Layer**: Low-level bindings for HPX C++ core functionality
+   using Nanobind
 2. **High-Level Python API**: A Pythonic interface that wraps the core bindings
-3. **Free-Threading Integration**: Mechanisms to ensure the bindings work optimally with Python's free-threading mode
-4. **Testing Framework**: Comprehensive tests to verify functionality and performance
+3. **Free-Threading Integration**: Mechanisms to ensure the bindings work
+   optimally with Python's free-threading mode
+4. **Testing Framework**: Comprehensive tests to verify functionality and
+   performance
 
 ## Contributing
 
