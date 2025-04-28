@@ -45,6 +45,91 @@ This template contains the following:
    [`coverage.py`](https://coverage.readthedocs.io/en/7.2.3/) via
    [`pytest-cov`](https://pytest-cov.readthedocs.io/en/latest/).
 
+## Installation and Building
+
+HPyX uses [pixi](https://pixi.sh/) for environment and dependency management. This allows for consistent development environments across platforms.
+
+### Prerequisites
+
+- Install pixi following the instructions on the [pixi documentation](https://pixi.sh/latest/install/)
+
+### Setting up the environment
+
+Clone the repository and navigate to the project directory:
+
+```bash
+git clone https://github.com/uw-ssec/HPyX.git
+cd HPyX
+```
+
+HPyX provides several predefined environments:
+
+- `py313t` - Python 3.13 with free threading for testing
+- `py313` - Standard Python 3.13 environment for testing
+- `build313t` - Environment for building with Python 3.13 free threading
+
+To create and activate an environment:
+
+```bash
+pixi shell -e py313
+```
+
+### Installing the package
+
+To install the package in development mode with all optional dependencies:
+
+```bash
+pixi run install-all
+```
+
+For a standard installation:
+
+```bash
+pixi run install
+```
+
+To uninstall the package:
+
+```bash
+pixi run uninstall
+```
+
+### Building the package
+
+To build a wheel:
+
+```bash
+pixi run build-wheel
+```
+
+### Running tests
+
+To run tests:
+
+```bash
+pixi run test
+```
+
+### Code quality
+
+To run linting on all files:
+
+```bash
+pixi run lint
+```
+
+### Additional tasks
+
+Check the Python version in your environment:
+
+```bash
+pixi run get-python-version
+```
+
+## Development
+
+This project uses HPX C++ library with Python bindings. The build system is based on CMake and scikit-build-core.
+
 ## Open source licensing
 
 Statement from Schmidt Sciences:
