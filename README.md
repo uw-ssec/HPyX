@@ -1,4 +1,4 @@
-# python-project-template
+# HPyX: Python Bindings for HPX C++ Parallelism Library
 
 <span><img src="https://img.shields.io/badge/SSEC-Project-purple?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAOCAQAAABedl5ZAAAACXBIWXMAAAHKAAABygHMtnUxAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAMNJREFUGBltwcEqwwEcAOAfc1F2sNsOTqSlNUopSv5jW1YzHHYY/6YtLa1Jy4mbl3Bz8QIeyKM4fMaUxr4vZnEpjWnmLMSYCysxTcddhF25+EvJia5hhCudULAePyRalvUteXIfBgYxJufRuaKuprKsbDjVUrUj40FNQ11PTzEmrCmrevPhRcVQai8m1PRVvOPZgX2JttWYsGhD3atbHWcyUqX4oqDtJkJiJHUYv+R1JbaNHJmP/+Q1HLu2GbNoSm3Ft0+Y1YMdPSTSwQAAAABJRU5ErkJggg==&style=plastic" /><span>
 ![BSD License](https://badgen.net/badge/license/BSD-3-Clause/blue)
@@ -10,40 +10,27 @@
 [![CI](https://github.com/uw-ssec/python-project-template/actions/workflows/ci.yml/badge.svg)](https://github.com/uw-ssec/python-project-template/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/uw-ssec/python-project-template/graph/badge.svg?token=13LYMLQBZL)](https://codecov.io/gh/uw-ssec/python-project-template)
 
-Python project repository template for developing python package. This template
-includes a basic structure for developing a python package, including a license,
-documentation, testing, and continuous integration. It is based on the
-[Scientific Python Library Development Guide and Cookiecutter](https://github.com/scientific-python/cookie).
+## Project Overview
 
-This repository contains a template for developing a python project. To start,
-click on the green
-[Use this template](https://github.com/uw-ssec/python-project-template/generate)
-in the top right. This will allow you to create a new project using this base
-template.
+HPyX provides Python bindings for the HPX C++ Parallelism Library using Nanobind and leveraging Python 3.13's free-threading capabilities. The goal is to make HPX's powerful parallel processing features accessible to Python developers while achieving optimal performance through true multi-threading.
 
-## What's included
+## What is HPX?
 
-This template contains the following:
+HPX (High Performance ParalleX) is a C++ Standard Library for Concurrency and Parallelism that implements modern C++ parallelism features defined by the C++ Standard. It provides:
 
-1. Python package setup files for building python package to a distribution. See
-   [PyPA packaging user guide](https://packaging.python.org/en/latest/) for more
-   info.
-2. Basic license file (currently BSD 3-Clause License, but can be modified to
-   specific project). See [choose a license](https://choosealicense.com/) for
-   more licenses.
-3. Starter [Jupyter Book](https://jupyterbook.org) based documentation
-   structure.
-4. Single test example to demonstrate the use of
-   [pytest](https://docs.pytest.org/en/7.2.x/).
-5. [GitHub workflow](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
-   config to run tests.
-6. [Pre-commit](https://pre-commit.com/) config to enable code style checks
-   before committing.
-7. [Read The Docs](https://readthedocs.org/) config to enable free hosting of
-   documentation.
-8. Code coverage analysis with
-   [`coverage.py`](https://coverage.readthedocs.io/en/7.2.3/) via
-   [`pytest-cov`](https://pytest-cov.readthedocs.io/en/latest/).
+- A unified API for local and remote parallel operations
+- Asynchronous execution through futures and dataflow
+- Fine-grained task parallelism
+- Support for distributed computing
+- Performance counter frameworks for runtime adaptivity
+
+## Features
+
+- Python interface to HPX's parallel algorithms and components
+- True parallel execution using Python 3.13's free-threading mode (experimental)
+- High-performance bindings using Nanobind
+- Pythonic API that follows Python conventions while exposing HPX power
+- Comprehensive documentation and examples
 
 ## Installation and Building
 
@@ -54,6 +41,8 @@ This allows for consistent development environments across platforms.
 
 - Install pixi following the instructions on the
   [pixi documentation](https://pixi.sh/latest/install/)
+- Python 3.13 built with `--disable-gil` option for optimal performance
+- Modern C++ compiler with C++17 support (GCC 8+, Clang 8+, MSVC 2019+)
 
 ### Setting up the environment
 
@@ -130,8 +119,20 @@ pixi run get-python-version
 
 ## Development
 
-This project uses HPX C++ library with Python bindings. The build system is
-based on CMake and scikit-build-core.
+HPyX uses Nanobind to create efficient Python bindings for the HPX C++ library. The build system is based on CMake and scikit-build-core for seamless integration between C++ and Python components.
+
+### Technical Approach
+
+Our approach consists of the following components:
+
+1. **Core Binding Layer**: Low-level bindings for HPX C++ core functionality using Nanobind
+2. **High-Level Python API**: A Pythonic interface that wraps the core bindings
+3. **Free-Threading Integration**: Mechanisms to ensure the bindings work optimally with Python's free-threading mode
+4. **Testing Framework**: Comprehensive tests to verify functionality and performance
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Open source licensing
 
