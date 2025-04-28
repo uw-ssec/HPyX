@@ -69,4 +69,3 @@ pytest = ">=8.3.5,<9"
 jupyterlab = "*"
 ipykernel = "*"
 pixi-kernel = "*"
-
