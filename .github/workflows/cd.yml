@@ -33,7 +33,7 @@ jobs:
         with:
           pixi-version: v0.44.0
           cache: true
-      
+
       - name: Build package
         run: |
           # Build the package
