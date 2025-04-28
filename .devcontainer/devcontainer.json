@@ -10,6 +10,11 @@
         "extensions": ["ms-python.python", "charliermarsh.ruff", "GitHub.copilot"]
       }
     },
+    "hostRequirements": {
+        "cpus": 4,
+        "memory": "16gb",
+        "storage": "32gb"
+    },
     "features": {
       "ghcr.io/devcontainers/environments/docker-in-docker:2": {}
     },
