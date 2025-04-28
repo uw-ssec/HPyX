@@ -9,7 +9,7 @@ version = "0.1.0"
 [tasks]
 get-python-version = "python --version"
 install-all = 'pip install --verbose -e ".[all]"'
-install = 'pip install --verbose "."'
+install = 'pip install --force-reinstall --verbose "."'
 uninstall = "pip uninstall -y hpyx"
 
 [tasks.lint]
@@ -57,6 +57,7 @@ build = ">=1.2.2.post1, <2"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
+uv = ">=0.6.17,<0.7"
 
 [feature.lint.dependencies]
 pre-commit = ">=4.2.0,<5"
