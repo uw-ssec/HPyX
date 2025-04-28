@@ -113,4 +113,4 @@ target_compile_definitions(_core PRIVATE VERSION_INFO=${PROJECT_VERSION})
 message(STATUS "Project version: ${PROJECT_VERSION}")
 
 # Install the _core module into the hpyx directory.
-install(TARGETS _core LIBRARY DESTINATION hpyx)
+install(TARGETS _core LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME})
