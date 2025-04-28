@@ -47,11 +47,13 @@ This template contains the following:
 
 ## Installation and Building
 
-HPyX uses [pixi](https://pixi.sh/) for environment and dependency management. This allows for consistent development environments across platforms.
+HPyX uses [pixi](https://pixi.sh/) for environment and dependency management.
+This allows for consistent development environments across platforms.
 
 ### Prerequisites
 
-- Install pixi following the instructions on the [pixi documentation](https://pixi.sh/latest/install/)
+- Install pixi following the instructions on the
+  [pixi documentation](https://pixi.sh/latest/install/)
 
 ### Setting up the environment
 
@@ -128,7 +130,8 @@ pixi run get-python-version
 
 ## Development
 
-This project uses HPX C++ library with Python bindings. The build system is based on CMake and scikit-build-core.
+This project uses HPX C++ library with Python bindings. The build system is
+based on CMake and scikit-build-core.
 
 ## Open source licensing
 
