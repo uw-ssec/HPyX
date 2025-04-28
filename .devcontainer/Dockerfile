@@ -6,8 +6,4 @@ RUN curl -L -o /usr/local/bin/pixi -fsSL --compressed "https://github.com/prefix
     && chmod +x /usr/local/bin/pixi \
     && pixi info
 
-# set some user and workdir settings to work nicely with vscode
-USER vscode
-WORKDIR /home/vscode
-
-RUN echo 'eval "$(pixi completion -s bash)"' >> /home/vscode/.bashrc
+RUN echo 'eval "$(pixi completion -s bash)"' >> ${HOME}/.bashrc
