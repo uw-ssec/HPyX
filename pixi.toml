@@ -2,12 +2,14 @@
 authors = ["Don Setiawan", "Ayush Nag"]
 channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
-name = "HPyX"
+name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
-install = 'pip install --verbose ".[all]"'
+get-python-version = "python --version"
+install-all = 'pip install --verbose -e ".[all]"'
+install = 'pip install --verbose "."'
 uninstall = "pip uninstall -y hpyx"
 
 [tasks.lint]
@@ -23,19 +25,20 @@ depends-on = ["install"]
 
 [tasks.build-wheel]
 cmd = ["uv", "build"]
-depends-on = ["lint"]
 
 [dependencies]
 cmake = ">=3.15,<3.29"
 cxx-compiler = ">=1.8.0,<2"
 make = ">=4.4.1,<5"
-clang = ">=17.0.6,<21"
+clang = ">=17.0.6,<18"
 hpx = ">=1.10.0,<2"
+nanobind = ">=2.7.0,<3"
+libboost-headers = ">=1.88.0,<2"
 
 [environments]
-default = ["test", "lint", "build", "python", "py313"]
 py313t = ["test", "python", "py313t"]
 py313 = ["test", "python", "py313"]
+build313t = ["build", "python", "py313t"]
 
 # Python Package Dependencies
 [feature.python.dependencies]
@@ -43,14 +46,17 @@ pip = ">=25.0.1,<26"
 
 # Python Versions Dependencies
 [feature.py313t.dependencies]
-python-freethreading= "3.13.*"
+python-freethreading = ">=3.13.3,<4"
 
 [feature.py313.dependencies]
-python= "3.13.*"
+python = ">=3.13.3,<4"
 
 # Build Dependencies
 [feature.build.pypi-dependencies]
 build = ">=1.2.2.post1, <2"
+
+[feature.build.dependencies]
+scikit-build-core = "*"
 
 [feature.lint.dependencies]
 pre-commit = ">=4.2.0,<5"
@@ -58,3 +64,8 @@ identify = ">=1.2.2,<2"
 
 [feature.test.dependencies]
 pytest = ">=8.3.5,<9"
+
+[feature.notebook.dependencies]
+jupyterlab = "*"
+ipykernel = "*"
+pixi-kernel = "*"
