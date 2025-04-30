@@ -1,5 +1,7 @@
 #include <nanobind/nanobind.h>
-#include <hpx/hpx_main.hpp>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/string.h>
+#include <hpx/hpx_start.hpp>
 #include <hpx/iostream.hpp>
 
 #define STRINGIFY(x) #x
@@ -15,10 +17,110 @@ int hpx_hello()
     return 0;
 }
 
+struct global_runtime_manager
+{
+    global_runtime_manager(std::vector<std::string> const& config)
+      : running_(false), rts_(nullptr), cfg(config)
+    {
+        hpx::init_params params;
+        params.cfg = cfg;
+        params.mode = hpx::runtime_mode::console;
+
+        hpx::util::function_nonser<int(int, char**)> start_function =
+            hpx::util::bind_front(&global_runtime_manager::hpx_main, this);
+
+        if (!hpx::start(start_function, 0, nullptr, params))
+        {
+            std::abort(); // Failed to initialize runtime
+        }
+
+        // Wait for the main HPX thread to start
+        std::unique_lock<std::mutex> lk(startup_mtx_);
+        while (!running_)
+            startup_cond_.wait(lk);
+    }
+
+    ~global_runtime_manager()
+    {
+        {
+            std::lock_guard<std::mutex> lk(mtx_);
+            rts_ = nullptr;
+        }
+
+        cond_.notify_one();
+        hpx::stop(); // Stop the runtime
+    }
+
+    int hpx_main(int argc, char* argv[])
+    {
+        rts_ = hpx::get_runtime_ptr();
+
+        {
+            std::lock_guard<std::mutex> lk(startup_mtx_);
+            running_ = true;
+        }
+
+        startup_cond_.notify_one();
+
+        // Wait for the destructor to signal exit
+        {
+            std::unique_lock<std::mutex> lk(mtx_);
+            if (rts_ != nullptr)
+                cond_.wait(lk);
+        }
+
+        return hpx::finalize(); // Allow runtime to exit
+    }
+
+private:
+    std::mutex mtx_;
+    std::condition_variable cond_;
+
+    std::mutex startup_mtx_;
+    std::condition_variable startup_cond_;
+    bool running_;
+
+    hpx::runtime* rts_;
+    std::vector<std::string> const cfg;
+};
+
+global_runtime_manager* rts = nullptr;
+
+void init_hpx_runtime(std::vector<std::string> const& cfg)
+{
+    if (rts == nullptr)
+    {
+        nb::gil_scoped_acquire acquire;
+        rts = new global_runtime_manager(cfg);
+    }
+}
+
+void stop_hpx_runtime()
+{
+    global_runtime_manager* r = rts;
+    rts = nullptr;
+    if (r != nullptr)
+    {
+        nb::gil_scoped_release release;
+        delete r;
+    }
+}
+
 NB_MODULE(_core, m) {
     m.doc() = "Python bindings for HPX C++ API";
     m.def("add", [](int a, int b) { return a + b; }, "a"_a, "b"_a);
     m.def("hpx_hello", &hpx_hello);
+    // // Generic async: accepts any Python callable and returns an hpx::future<nb::object>
+    m.def("hpx_async", [](const nb::callable& fn)
+    {
+        return hpx::async([fn]() -> nb::object
+        {
+            nb::gil_scoped_acquire acquire;
+            return fn();
+        });
+    });
+    m.def("init_hpx_runtime", &init_hpx_runtime);
+    m.def("stop_hpx_runtime", &stop_hpx_runtime);
 
     #ifdef VERSION_INFO
         m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
