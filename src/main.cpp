@@ -17,6 +17,20 @@ int hpx_hello()
     return 0;
 }
 
+void hpx_async_add(int a, int b)
+{
+    auto add = [](int number, int value_to_add)
+    {
+        return number + value_to_add;
+    };
+
+    hpx::future<int> add_lazy = hpx::async(add, a, b);
+    std::cout << "Calling hpx::async(add, " << a << ", " << b
+              << ")" << std::endl;
+    int lazy_result = add_lazy.get();
+    std::cout << "Which returned: " << lazy_result << std::endl;
+}
+
 struct global_runtime_manager
 {
     global_runtime_manager(std::vector<std::string> const& config)
@@ -43,7 +57,7 @@ struct global_runtime_manager
     ~global_runtime_manager()
     {
         {
-            std::lock_guard<std::mutex> lk(mtx_);
+            std::lock_guard<hpx::lcos::local::spinlock> lk(mtx_);
             rts_ = nullptr;
         }
 
@@ -64,7 +78,7 @@ struct global_runtime_manager
 
         // Wait for the destructor to signal exit
         {
-            std::unique_lock<std::mutex> lk(mtx_);
+            std::unique_lock<hpx::lcos::local::spinlock> lk(mtx_);
             if (rts_ != nullptr)
                 cond_.wait(lk);
         }
@@ -73,8 +87,8 @@ struct global_runtime_manager
     }
 
 private:
-    std::mutex mtx_;
-    std::condition_variable cond_;
+    hpx::lcos::local::spinlock mtx_;
+    hpx::lcos::local::condition_variable_any cond_;
 
     std::mutex startup_mtx_;
     std::condition_variable startup_cond_;
@@ -110,7 +124,7 @@ NB_MODULE(_core, m) {
     m.doc() = "Python bindings for HPX C++ API";
     m.def("add", [](int a, int b) { return a + b; }, "a"_a, "b"_a);
     m.def("hpx_hello", &hpx_hello);
-    // // Generic async: accepts any Python callable and returns an hpx::future<nb::object>
+    m.def("hpx_async_add", &hpx_async_add, "a"_a, "b"_a);
     m.def("hpx_async", [](const nb::callable& fn)
     {
         return hpx::async([fn]() -> nb::object
