@@ -40,8 +40,8 @@ struct global_runtime_manager
         params.cfg = cfg;
         params.mode = hpx::runtime_mode::console;
 
-        hpx::util::function_nonser<int(int, char**)> start_function =
-            hpx::util::bind_front(&global_runtime_manager::hpx_main, this);
+        hpx::function<int(int, char**)> start_function =
+            hpx::bind_front(&global_runtime_manager::hpx_main, this);
 
         if (!hpx::start(start_function, 0, nullptr, params))
         {
@@ -57,7 +57,7 @@ struct global_runtime_manager
     ~global_runtime_manager()
     {
         {
-            std::lock_guard<hpx::lcos::local::spinlock> lk(mtx_);
+            std::lock_guard<hpx::spinlock> lk(mtx_);
             rts_ = nullptr;
         }
 
@@ -78,7 +78,7 @@ struct global_runtime_manager
 
         // Wait for the destructor to signal exit
         {
-            std::unique_lock<hpx::lcos::local::spinlock> lk(mtx_);
+            std::unique_lock<hpx::spinlock> lk(mtx_);
             if (rts_ != nullptr)
                 cond_.wait(lk);
         }
@@ -87,8 +87,8 @@ struct global_runtime_manager
     }
 
 private:
-    hpx::lcos::local::spinlock mtx_;
-    hpx::lcos::local::condition_variable_any cond_;
+    hpx::spinlock mtx_;
+    hpx::condition_variable_any cond_;
 
     std::mutex startup_mtx_;
     std::condition_variable startup_cond_;
