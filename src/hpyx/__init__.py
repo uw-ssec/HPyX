@@ -24,7 +24,7 @@ cfg = [
     # don't print diagnostics during forced terminate
     "hpx.diagnostics_on_terminate!=0",
     # disable the TCP parcelport
-    "hpx.parcel.tcp.enable!=0"
+    "hpx.parcel.tcp.enable!=0",
 ]
 
 init_hpx_runtime(cfg)
