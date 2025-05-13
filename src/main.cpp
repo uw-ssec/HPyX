@@ -120,21 +120,38 @@ void stop_hpx_runtime()
     }
 }
 
+template <typename T>
+void bind_hpx_future(nb::module_ &m, const char *name) {
+    nb::class_<hpx::future<T>>(m, name)
+        .def("get", [](hpx::future<T> &f) {
+            auto result = f.get();
+            nb::gil_scoped_release release;
+            return result;
+        });
+}
+
 NB_MODULE(_core, m) {
     m.doc() = "Python bindings for HPX C++ API";
     m.def("add", [](int a, int b) { return a + b; }, "a"_a, "b"_a);
     m.def("hpx_hello", &hpx_hello);
     m.def("hpx_async_add", &hpx_async_add, "a"_a, "b"_a);
-    m.def("hpx_async", [](const nb::callable& fn)
-    {
-        return hpx::async([fn]() -> nb::object
-        {
+
+    bind_hpx_future<nb::object>(m, "future");
+    
+    m.def("hpx_async", [](nb::callable f, nb::args args) {
+        auto result = hpx::async([f, args]() {
             nb::gil_scoped_acquire acquire;
-            return fn();
+            return f(*args);
         });
-    });
+        return result;
+    }, "f"_a, nb::arg("*args"));
+    
     m.def("init_hpx_runtime", &init_hpx_runtime);
     m.def("stop_hpx_runtime", &stop_hpx_runtime);
+
+    m.def("get_num_worker_threads", []() {
+        return hpx::get_num_worker_threads();
+    });
 
     #ifdef VERSION_INFO
         m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
