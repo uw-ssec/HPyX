@@ -13,7 +13,8 @@ using namespace nb::literals;
 int hpx_hello()
 {
     // Say hello to the world!
-    hpx::cout << "Hello World!\n" << std::flush;
+    hpx::cout << "Hello World!\n"
+              << std::flush;
     return 0;
 }
 
@@ -33,14 +34,14 @@ void hpx_async_add(int a, int b)
 
 struct global_runtime_manager
 {
-    global_runtime_manager(std::vector<std::string> const& config)
-      : running_(false), rts_(nullptr), cfg(config)
+    global_runtime_manager(std::vector<std::string> const &config)
+        : running_(false), rts_(nullptr), cfg(config)
     {
         hpx::init_params params;
         params.cfg = cfg;
-        params.mode = hpx::runtime_mode::console;
+        // params.mode = hpx::runtime_mode::console;
 
-        hpx::function<int(int, char**)> start_function =
+        hpx::function<int(int, char **)> start_function =
             hpx::bind_front(&global_runtime_manager::hpx_main, this);
 
         if (!hpx::start(start_function, 0, nullptr, params))
@@ -65,7 +66,7 @@ struct global_runtime_manager
         hpx::stop(); // Stop the runtime
     }
 
-    int hpx_main(int argc, char* argv[])
+    int hpx_main(int argc, char *argv[])
     {
         rts_ = hpx::get_runtime_ptr();
 
@@ -94,13 +95,13 @@ private:
     std::condition_variable startup_cond_;
     bool running_;
 
-    hpx::runtime* rts_;
+    hpx::runtime *rts_;
     std::vector<std::string> const cfg;
 };
 
-global_runtime_manager* rts = nullptr;
+global_runtime_manager *rts = nullptr;
 
-void init_hpx_runtime(std::vector<std::string> const& cfg)
+void init_hpx_runtime(std::vector<std::string> const &cfg)
 {
     if (rts == nullptr)
     {
@@ -111,7 +112,7 @@ void init_hpx_runtime(std::vector<std::string> const& cfg)
 
 void stop_hpx_runtime()
 {
-    global_runtime_manager* r = rts;
+    global_runtime_manager *r = rts;
     rts = nullptr;
     if (r != nullptr)
     {
@@ -126,36 +127,44 @@ void bind_hpx_future(nb::module_ &m, const char *name) {
         .def("get", [](hpx::future<T> &f) {
             auto result = f.get();
             nb::gil_scoped_release release;
-            return result;
-        });
+            return result; })
+        .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args)
+             {
+            auto fut = f.then([callback, args](hpx::future<T> && f) -> nb::object {
+                nb::gil_scoped_acquire acquire;
+                T result = f.get();
+                return callback(result, *args);
+            });
+            return fut; }, "callback"_a, nb::arg("*args"));
 }
 
-NB_MODULE(_core, m) {
+NB_MODULE(_core, m)
+{
     m.doc() = "Python bindings for HPX C++ API";
-    m.def("add", [](int a, int b) { return a + b; }, "a"_a, "b"_a);
+    m.def("add", [](int a, int b)
+          { return a + b; }, "a"_a, "b"_a);
     m.def("hpx_hello", &hpx_hello);
     m.def("hpx_async_add", &hpx_async_add, "a"_a, "b"_a);
 
     bind_hpx_future<nb::object>(m, "future");
-    
-    m.def("hpx_async", [](nb::callable f, nb::args args) {
+
+    m.def("hpx_async", [](nb::callable f, nb::args args)
+          {
         auto result = hpx::async([f, args]() {
             nb::gil_scoped_acquire acquire;
             return f(*args);
         });
-        return result;
-    }, "f"_a, nb::arg("*args"));
-    
+        return result; }, "f"_a, nb::arg("*args"));
+
     m.def("init_hpx_runtime", &init_hpx_runtime);
     m.def("stop_hpx_runtime", &stop_hpx_runtime);
 
-    m.def("get_num_worker_threads", []() {
-        return hpx::get_num_worker_threads();
-    });
+    m.def("get_num_worker_threads", []()
+          { return hpx::get_num_worker_threads(); });
 
-    #ifdef VERSION_INFO
-        m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
-    #else
-        m.attr("__version__") = "dev";
-    #endif
+#ifdef VERSION_INFO
+    m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
+#else
+    m.attr("__version__") = "dev";
+#endif
 }
