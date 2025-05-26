@@ -137,7 +137,7 @@ NB_MODULE(_core, m) {
     m.def("hpx_async_add", &hpx_async_add, "a"_a, "b"_a);
 
     bind_hpx_future<nb::object>(m, "future");
-    
+
     m.def("hpx_async", [](nb::callable f, nb::args args) {
         auto result = hpx::async([f, args]() {
             nb::gil_scoped_acquire acquire;
@@ -145,7 +145,7 @@ NB_MODULE(_core, m) {
         });
         return result;
     }, "f"_a, nb::arg("*args"));
-    
+
     m.def("init_hpx_runtime", &init_hpx_runtime);
     m.def("stop_hpx_runtime", &stop_hpx_runtime);
 
