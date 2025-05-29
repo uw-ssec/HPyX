@@ -122,9 +122,11 @@ void stop_hpx_runtime()
 }
 
 template <typename T>
-void bind_hpx_future(nb::module_ &m, const char *name) {
+void bind_hpx_future(nb::module_ &m, const char *name)
+{
     nb::class_<hpx::future<T>>(m, name)
-        .def("get", [](hpx::future<T> &f) {
+        .def("get", [](hpx::future<T> &f)
+             {
             auto result = f.get();
             nb::gil_scoped_release release;
             return result; })
@@ -135,7 +137,13 @@ void bind_hpx_future(nb::module_ &m, const char *name) {
                 T result = f.get();
                 return callback(result, *args);
             });
-            return fut; }, "callback"_a, nb::arg("*args"));
+            return fut; }, "callback"_a, nb::arg("*args"))
+
+        .def("running", [](hpx::future<T> &f)
+             { return f.valid() && !f.is_ready(); })
+
+        .def("done", [](hpx::future<T> &f)
+             { return f.is_ready(); });
 }
 
 NB_MODULE(_core, m)
@@ -156,8 +164,23 @@ NB_MODULE(_core, m)
         });
         return result; }, "f"_a, nb::arg("*args"));
 
+    m.def("hpx_async_set_result", [](nb::object py_future, nb::callable f, nb::args args, nb::kwargs kwargs)
+          {
+        auto result = hpx::async([py_future, f, args, kwargs]() {
+            nb::gil_scoped_acquire acquire;
+            auto res = f(*args, **kwargs);
+            // Call set_result() on the Python Future object
+            py_future.attr("set_result")(res);
+            return res;
+        });
+
+        return result; }, "py_future"_a, "f"_a, nb::arg("*args"), nb::arg("**kwargs"));
+
     m.def("init_hpx_runtime", &init_hpx_runtime);
     m.def("stop_hpx_runtime", &stop_hpx_runtime);
+
+    m.def("hpx_print", [](const std::string &msg)
+          { hpx::cout << msg << std::endl; }, "msg"_a);
 
     m.def("get_num_worker_threads", []()
           { return hpx::get_num_worker_threads(); });
