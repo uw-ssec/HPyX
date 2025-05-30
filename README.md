@@ -150,4 +150,5 @@ Thanks to our contributors so far!
 
 ## License
 
-HPyX is licensed under the BSD 3-Clause License. See the [LICENSE](LICENSE) file for details.
+HPyX is licensed under the BSD 3-Clause License. See the [LICENSE](LICENSE) file
+for details.
