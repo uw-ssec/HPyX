@@ -144,16 +144,10 @@ Our approach consists of the following components:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Open source licensing
+Thanks to our contributors so far!
 
-Statement from Schmidt Sciences:
+[![Contributors](https://contrib.rocks/image?repo=uw-ssec/HPyX)](https://github.com/uw-ssec/HPyX/graphs/contributors)
 
-_Schmidt Sciences expects that any code from projects funded by Schmidt Sciences
-be released as open source under an
-[OSI](https://opensource.org/licenses)-approved permissive license (such as
-[Apache v2.0](https://choosealicense.com/licenses/apache-2.0/) or
-[MIT](https://choosealicense.com/licenses/mit/)). We recommend that projects
-avoid using GPL due to known complexities associated with it. We encourage
-projects to publish data used for peer-reviewed scientific articles along with
-the code used to produce the results. Additionally, we recommend avoiding any
-license modifications for simplicity, and alignment with standard practices._
+## License
+
+HPyX is licensed under the BSD 3-Clause License. See the [LICENSE](LICENSE) file for details.
