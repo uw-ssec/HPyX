@@ -9,12 +9,15 @@ version = "0.1.0"
 [tasks]
 get-python-version = "python --version"
 install-all = 'pip install --verbose -e ".[all]"'
-install = 'pip install --force-reinstall --verbose "."'
+install = 'pip install --force-reinstall --verbose -e "."'
 uninstall = "pip uninstall -y hpyx"
 
 [tasks.lint]
 cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
 depends-on = ["pre-commit-clean"]
+
+[tasks.benchmark]
+cmd = ["pytest", "./benchmarks", "--benchmark-group-by=func", "--benchmark-warmup=on", "--benchmark-min-rounds=3"]
 
 [tasks.pre-commit-clean]
 cmd = ["pre-commit", "clean"]
@@ -34,6 +37,8 @@ clang = ">=17.0.6,<18"
 hpx = ">=1.10.0,<2"
 nanobind = ">=2.7.0,<3"
 libboost-headers = ">=1.88.0,<2"
+threadpoolctl = ">=3.6.0,<4"
+pytest-benchmark = ">=5.1.0,<6"
 
 [environments]
 py313t = ["test", "python", "py313t"]
