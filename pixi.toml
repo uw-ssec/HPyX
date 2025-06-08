@@ -17,7 +17,8 @@ cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
 depends-on = ["pre-commit-clean"]
 
 [tasks.benchmark]
-cmd = ["pytest", "./benchmarks", "--benchmark-group-by=func", "--benchmark-warmup=on", "--benchmark-min-rounds=3"]
+args = [{ "arg" = "keyword_expression", "default" = "" }]
+cmd = ["pytest", "./benchmarks", "-k", "'{{keyword_expression}}'", "--benchmark-group-by=func", "--benchmark-warmup=on", "--benchmark-min-rounds=3", "--benchmark-time-unit=ms"]
 
 [tasks.pre-commit-clean]
 cmd = ["pre-commit", "clean"]
