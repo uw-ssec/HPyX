@@ -52,14 +52,18 @@ mimalloc = ">=3.0.1,<4"
 gperftools = ">=2.10,<3"
 asio = ">=1.29.0,<2"
 
-[feature.hpx-latest.tasks]
-set-hpx-version = { args = [
+[feature.hpx-latest.tasks.set-hpx-version]
+args = [
     { "arg" = "tag", "default" = "v1.11.0-rc1" },
-], cmd = [
+]
+cmd = [
     "git",
     "checkout",
     "{{ tag }}",
-], cwd = "vendors/hpx" }
+]
+cwd = "vendors/hpx"
+
+[feature.hpx-latest.tasks]
 build = { cmd = ["../../scripts/build.sh"], cwd = "vendors/hpx" }
 build-hpx-latest = { depends-on = ["set-hpx-version", "build"] }
 install-all = { cmd = 'pip install --verbose -e ".[all]"', depends-on = [
