@@ -1,0 +1,3 @@
+[submodule "vendors/hpx"]
+	path = vendors/hpx
+	url = https://github.com/STEllAR-GROUP/hpx
