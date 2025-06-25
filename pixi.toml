@@ -61,10 +61,10 @@ cmd = [
     "checkout",
     "{{ tag }}",
 ]
-cwd = "vendors/hpx"
+cwd = "vendor/hpx"
 
 [feature.hpx-latest.tasks]
-build = { cmd = ["../../scripts/build.sh"], cwd = "vendors/hpx" }
+build = { cmd = ["../../scripts/build.sh"], cwd = "vendor/hpx" }
 build-hpx-latest = { depends-on = ["set-hpx-version", "build"] }
 install-all = { cmd = 'pip install --verbose -e ".[all]"', depends-on = [
     "build-hpx-latest",
