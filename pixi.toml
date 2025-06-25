@@ -52,6 +52,9 @@ mimalloc = ">=3.0.1,<4"
 gperftools = ">=2.10,<3"
 asio = ">=1.29.0,<2"
 
+[feature.hpx-latest.tasks.fetch-hpx-source]
+cmd = "git submodule update --init"
+
 [feature.hpx-latest.tasks.set-hpx-version]
 args = [
     { "arg" = "tag", "default" = "v1.11.0-rc1" },
@@ -62,6 +65,7 @@ cmd = [
     "{{ tag }}",
 ]
 cwd = "vendor/hpx"
+depends-on = ["fetch-hpx-source"]
 
 [feature.hpx-latest.tasks]
 build = { cmd = ["../../scripts/build.sh"], cwd = "vendor/hpx" }
