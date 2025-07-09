@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from types import TracebackType
 
 import hpyx
@@ -7,12 +8,12 @@ import hpyx
 class HPXRuntime:
     def __init__(
         self,
-        run_hpx_main:bool=True,
-        allow_unknown:bool=True,
-        aliasing:bool=False,
-        os_threads:str="auto",
-        diagnostics_on_terminate:bool=False,
-        tcp_enable:bool=False,
+        run_hpx_main: bool = True,
+        allow_unknown: bool = True,
+        aliasing: bool = False,
+        os_threads: str = "auto",
+        diagnostics_on_terminate: bool = False,
+        tcp_enable: bool = False,
     ) -> None:
         """
         Initialize the HPX runtime with configuration parameters.
@@ -30,8 +31,13 @@ class HPXRuntime:
 
         hpyx._core.init_hpx_runtime(cfg)
 
-    def __enter__(self:HPXRuntime) -> HPXRuntime:
+    def __enter__(self: HPXRuntime) -> HPXRuntime:
         return self
 
-    def __exit__(self:HPXRuntime, exc_type:type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:
+    def __exit__(
+        self: HPXRuntime,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         hpyx._core.stop_hpx_runtime()
