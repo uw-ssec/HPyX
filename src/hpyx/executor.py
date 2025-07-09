@@ -49,7 +49,7 @@ class HPXExecutor(Executor):
         :param args: The positional arguments to pass to the callable.
         :return: An HPXFuture representing the execution of the callable.
         """
-        fut:Future = Future()
+        fut: Future = Future()
         fut.set_running_or_notify_cancel()
         fut._hpx_cont = hpx_async_set_result(fut, fn, *args, **kwargs)
         return fut
