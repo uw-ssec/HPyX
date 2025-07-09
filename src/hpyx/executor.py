@@ -19,7 +19,7 @@ class HPXExecutor(Executor):
         os_threads=1,
         diagnostics_on_terminate=False,
         tcp_enable=False,
-    ):
+    ) -> None:
         """
         Initializes the HPXExecutor with configurable options.
 
@@ -41,7 +41,7 @@ class HPXExecutor(Executor):
 
         init_hpx_runtime(cfg)
 
-    def submit(self, fn, /, *args, **kwargs):
+    def submit(self, fn, /, *args, **kwargs) -> Future:
         """
         Submits a callable to be executed with the given arguments.
 
@@ -49,12 +49,12 @@ class HPXExecutor(Executor):
         :param args: The positional arguments to pass to the callable.
         :return: An HPXFuture representing the execution of the callable.
         """
-        fut = Future()
+        fut:Future = Future()
         fut.set_running_or_notify_cancel()
         fut._hpx_cont = hpx_async_set_result(fut, fn, *args, **kwargs)
         return fut
 
-    def shutdown(self, wait=True, *, cancel_futures=False):
+    def shutdown(self) -> None:
         """
         Signals the executor to stop accepting new tasks and optionally waits for running tasks to complete.
 

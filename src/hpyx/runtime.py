@@ -12,7 +12,7 @@ class HPXRuntime:
         os_threads="auto",
         diagnostics_on_terminate=False,
         tcp_enable=False,
-    ):
+    ) -> None:
         """
         Initialize the HPX runtime with configuration parameters.
         """
@@ -29,8 +29,8 @@ class HPXRuntime:
 
         hpyx._core.init_hpx_runtime(cfg)
 
-    def __enter__(self):
+    def __enter__(self) -> HPXRuntime:
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         hpyx._core.stop_hpx_runtime()
