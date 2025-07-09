@@ -1,8 +1,10 @@
 from __future__ import annotations
-
+from collections.abc import Callable
 from concurrent.futures import Executor, Future
+from typing import Any
 
-from hpyx._core import hpx_async_set_result, init_hpx_runtime, stop_hpx_runtime
+import hpyx
+
 
 
 class HPXExecutor(Executor):
@@ -13,12 +15,12 @@ class HPXExecutor(Executor):
 
     def __init__(
         self,
-        run_hpx_main=True,
-        allow_unknown=True,
-        aliasing=False,
-        os_threads=1,
-        diagnostics_on_terminate=False,
-        tcp_enable=False,
+        run_hpx_main:bool = True,
+        allow_unknown:bool = True,
+        aliasing:bool = False,
+        os_threads: int = 1,
+        diagnostics_on_terminate: bool = False,
+        tcp_enable: bool = False,
     ) -> None:
         """
         Initializes the HPXExecutor with configurable options.
@@ -39,9 +41,9 @@ class HPXExecutor(Executor):
             f"hpx.parcel.tcp.enable!={int(tcp_enable)}",
         ]
 
-        init_hpx_runtime(cfg)
+        hpyx._core.init_hpx_runtime(cfg)
 
-    def submit(self, fn, /, *args, **kwargs) -> Future:
+    def submit(self:HPXExecutor, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
         """
         Submits a callable to be executed with the given arguments.
 
@@ -49,15 +51,15 @@ class HPXExecutor(Executor):
         :param args: The positional arguments to pass to the callable.
         :return: An HPXFuture representing the execution of the callable.
         """
-        fut:Future = Future()
+        fut : hpyx._core.HPXFuture = Future()
         fut.set_running_or_notify_cancel()
-        fut._hpx_cont = hpx_async_set_result(fut, fn, *args, **kwargs)
+        fut._hpx_cont = hpyx._core.hpx_async_set_result(fut, fn, *args, **kwargs)
         return fut
 
-    def shutdown(self) -> None:
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
         """
         Signals the executor to stop accepting new tasks and optionally waits for running tasks to complete.
 
         :param wait: If True, wait for running tasks to complete before shutting down.
         """
-        stop_hpx_runtime()
+        hpyx._core.stop_hpx_runtime()
