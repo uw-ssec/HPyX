@@ -36,7 +36,7 @@ cxx-compiler = ">=1.8.0,<2"
 make = ">=4.4.1,<5"
 clang = ">=17.0.6,<18"
 nanobind = ">=2.7.0,<3"
-libboost-headers = ">=1.88.0,<2"
+libboost-headers = ">=1.86.0,<2"
 threadpoolctl = ">=3.6.0,<4"
 pytest-benchmark = ">=5.1.0,<6"
 
