@@ -6,15 +6,26 @@ name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64"]
 version = "0.1.0"
 
+# Linux-64 specific
+[target.linux-64.activation.env]
+# For loading the right tcmalloc library
+# See https://github.com/STEllAR-GROUP/phylanx/wiki/Phylanx-Issues-and-Answers
+# TODO: Maybe figure out a way to make this work, without specifying
+LD_PRELOAD = "$CONDA_PREFIX/lib/libtcmalloc_minimal.so:$LD_PRELOAD"
+
 [tasks]
 get-python-version = "python --version"
 install-all = 'pip install --verbose -e ".[all]"'
-install = 'pip install --force-reinstall --verbose "."'
+install = 'pip install --force-reinstall --verbose -e "."'
 uninstall = "pip uninstall -y hpyx"
 
 [tasks.lint]
 cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
 depends-on = ["pre-commit-clean"]
+
+[tasks.benchmark]
+args = [{ "arg" = "keyword_expression", "default" = "" }]
+cmd = ["pytest", "./benchmarks", "-k", "'{{keyword_expression}}'", "--benchmark-group-by=func", "--benchmark-warmup=on", "--benchmark-min-rounds=3", "--benchmark-time-unit=ms"]
 
 [tasks.pre-commit-clean]
 cmd = ["pre-commit", "clean"]
@@ -33,6 +44,12 @@ make = ">=4.4.1,<5"
 clang = ">=17.0.6,<18"
 nanobind = ">=2.7.0,<3"
 libboost-headers = ">=1.86.0,<2"
+threadpoolctl = ">=3.6.0,<4"
+pytest-benchmark = ">=5.1.0,<6"
+
+[host-dependencies]
+gperftools = ">=2.10,<3"
+asio = ">=1.29.0,<2"
 
 [environments]
 py313t = ["test", "python", "py313t", "hpx"]
@@ -48,9 +65,6 @@ py313-latest = ["test", "python", "py313", "hpx-latest"]
 ninja = ">=1.13.0,<2"
 libhwloc = ">=2.11.2,<3"
 libboost-devel = ">=1.86.0,<2"
-mimalloc = ">=3.0.1,<4"
-gperftools = ">=2.10,<3"
-asio = ">=1.29.0,<2"
 
 [feature.hpx-latest.tasks.fetch-hpx-source]
 cmd = "git submodule update --init"
