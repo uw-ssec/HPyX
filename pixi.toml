@@ -6,13 +6,6 @@ name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64"]
 version = "0.1.0"
 
-# Linux-64 specific
-[target.linux-64.activation.env]
-# For loading the right tcmalloc library
-# See https://github.com/STEllAR-GROUP/phylanx/wiki/Phylanx-Issues-and-Answers
-# TODO: Maybe figure out a way to make this work, without specifying
-LD_PRELOAD = "$CONDA_PREFIX/lib/libtcmalloc_minimal.so:$LD_PRELOAD"
-
 [tasks]
 get-python-version = "python --version"
 install-all = 'pip install --verbose -e ".[all]"'
