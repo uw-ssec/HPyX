@@ -52,9 +52,9 @@ gperftools = ">=2.10,<3"
 asio = ">=1.29.0,<2"
 
 [environments]
-py313t = ["test", "python", "py313t", "hpx"]
-py313 = ["test", "python", "py313", "hpx"]
-build313t = ["build", "python", "py313t", "hpx"]
+py313t = ["test", "python", "py313t", "hpx-latest"]
+py313 = ["test", "python", "py313", "hpx-latest"]
+build313t = ["build", "python", "py313t", "hpx-latest"]
 py313t-latest = ["test", "python", "py313t", "hpx-latest"]
 py313-latest = ["test", "python", "py313", "hpx-latest"]
 
