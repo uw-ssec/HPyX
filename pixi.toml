@@ -3,8 +3,15 @@ authors = ["Don Setiawan", "Ayush Nag"]
 channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
 name = "hpyx"
-platforms = ["linux-64", "osx-64", "osx-arm64"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 version = "0.1.0"
+
+# Target specific dependencies
+[target.unix.dependencies]
+gperftools = ">=2.10,<3"
+
+[target.win.dependencies]
+mimalloc = ">=3.0.1,<4"
 
 [tasks]
 get-python-version = "python --version"
@@ -44,7 +51,6 @@ threadpoolctl = ">=3.6.0,<4"
 pytest-benchmark = ">=5.1.0,<6"
 
 [host-dependencies]
-gperftools = ">=2.10,<3"
 asio = ">=1.29.0,<2"
 
 [environments]
