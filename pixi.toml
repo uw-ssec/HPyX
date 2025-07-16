@@ -27,6 +27,7 @@ depends-on = ["build-hpx-stable", "install"]
 
 [tasks.build-wheel]
 cmd = ["uv", "build"]
+depends-on = ["build-hpx-stable"]
 
 [dependencies]
 cmake = ">=3.15,<3.29"
@@ -61,6 +62,9 @@ depends-on = [{ "task" = "build-hpx", "args" = ["v1.11.0-rc1"] }]
 [feature.hpx-src.tasks.build-hpx-stable]
 depends-on = [{ "task" = "build-hpx", "args" = ["v1.10.0"] }]
 
+[feature.hpx-src.tasks.restore-submodule]
+cmd = "git restore vendor/hpx"
+
 [feature.hpx-src.tasks.build-hpx]
 args = [
     { "arg" = "tag", "default" = "v1.11.0-rc1" },
@@ -91,10 +95,12 @@ install = { depends-on = [
 install-all-latest = { depends-on = [
     "build-hpx-latest",
     "pip-install-all",
+    "restore-submodule"
 ] }
 install-latest = { depends-on = [
     "build-hpx-latest",
     "pip-install",
+    "restore-submodule"
 ] }
 
 # Conda stable hpx dependencies
