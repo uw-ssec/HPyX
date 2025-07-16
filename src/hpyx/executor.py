@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 from collections.abc import Callable
 from concurrent.futures import Executor, Future
 from typing import Any
 
 import hpyx
-
 
 
 class HPXExecutor(Executor):
@@ -15,9 +15,9 @@ class HPXExecutor(Executor):
 
     def __init__(
         self,
-        run_hpx_main:bool = True,
-        allow_unknown:bool = True,
-        aliasing:bool = False,
+        run_hpx_main: bool = True,
+        allow_unknown: bool = True,
+        aliasing: bool = False,
         os_threads: int = 1,
         diagnostics_on_terminate: bool = False,
         tcp_enable: bool = False,
@@ -43,7 +43,7 @@ class HPXExecutor(Executor):
 
         hpyx._core.init_hpx_runtime(cfg)
 
-    def submit(self:HPXExecutor, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
+    def submit(self: HPXExecutor, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
         """
         Submits a callable to be executed with the given arguments.
 
@@ -51,7 +51,7 @@ class HPXExecutor(Executor):
         :param args: The positional arguments to pass to the callable.
         :return: An HPXFuture representing the execution of the callable.
         """
-        fut : hpyx._core.HPXFuture = Future()
+        fut: hpyx._core.HPXFuture = Future()
         fut.set_running_or_notify_cancel()
         fut._hpx_cont = hpyx._core.hpx_async_set_result(fut, fn, *args, **kwargs)
         return fut
