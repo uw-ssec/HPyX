@@ -1,3 +1,5 @@
+# ruff: noqa: ARG002 # intentionally disabling ruff linting on this file, false positive flag
+
 from __future__ import annotations
 
 from collections.abc import Callable
