@@ -8,9 +8,11 @@ version = "0.1.0"
 
 [tasks]
 get-python-version = "python --version"
-install-all = 'pip install --verbose -e ".[all]"'
-install = 'pip install --force-reinstall --verbose "."'
+install-all = {depends-on = ["pip-install-all"]}
+install = {depends-on = ["pip-install"]}
 uninstall = "pip uninstall -y hpyx"
+pip-install = 'pip install --force-reinstall --verbose "."'
+pip-install-all = 'pip install --force-reinstall --verbose -e ".[all]"'
 
 [tasks.lint]
 cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
@@ -80,19 +82,19 @@ depends-on = ["fetch-hpx-source"]
 [feature.hpx-src.tasks]
 install-all = { depends-on = [
     "build-hpx-stable",
-    "install",
+    "pip-install-all",
 ] }
 install = { depends-on = [
     "build-hpx-stable",
-    "install",
+    "pip-install",
 ] }
 install-all-latest = { depends-on = [
     "build-hpx-latest",
-    "install",
+    "pip-install-all",
 ] }
 install-latest = { depends-on = [
     "build-hpx-latest",
-    "install",
+    "pip-install",
 ] }
 
 # Conda stable hpx dependencies
