@@ -6,18 +6,13 @@ name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64"]
 version = "0.1.0"
 
-# Linux-64 specific
-[target.linux-64.activation.env]
-# For loading the right tcmalloc library
-# See https://github.com/STEllAR-GROUP/phylanx/wiki/Phylanx-Issues-and-Answers
-# TODO: Maybe figure out a way to make this work, without specifying
-LD_PRELOAD = "$CONDA_PREFIX/lib/libtcmalloc_minimal.so:$LD_PRELOAD"
-
 [tasks]
 get-python-version = "python --version"
-install-all = 'pip install --verbose -e ".[all]"'
-install = 'pip install --force-reinstall --verbose -e "."'
+install-all = {depends-on = ["pip-install-all"]}
+install = {depends-on = ["pip-install"]}
 uninstall = "pip uninstall -y hpyx"
+pip-install = 'pip install --force-reinstall --verbose -e "."'
+pip-install-all = 'pip install --force-reinstall --verbose -e ".[all]"'
 
 [tasks.lint]
 cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
@@ -32,10 +27,11 @@ cmd = ["pre-commit", "clean"]
 
 [tasks.test]
 cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
-depends-on = ["install"]
+depends-on = ["build-hpx-stable", "install"]
 
 [tasks.build-wheel]
 cmd = ["uv", "build"]
+depends-on = ["build-hpx-stable"]
 
 [dependencies]
 cmake = ">=3.15,<3.29"
@@ -52,49 +48,72 @@ gperftools = ">=2.10,<3"
 asio = ">=1.29.0,<2"
 
 [environments]
-py313t = ["test", "python", "py313t", "hpx"]
-py313 = ["test", "python", "py313", "hpx"]
-build313t = ["build", "python", "py313t", "hpx"]
-py313t-latest = ["test", "python", "py313t", "hpx-latest"]
-py313-latest = ["test", "python", "py313", "hpx-latest"]
+py313t = ["test", "python", "py313t", "hpx-src"]
+py313 = ["test", "python", "py313", "hpx-src"]
+build313t = ["build", "python", "py313t", "hpx-src"]
 
 # Latest HPX Dependencies
 # The following configuration is for the latest HPX version,
 # which is not yet available in conda-forge.
-[feature.hpx-latest.host-dependencies]
+[feature.hpx-src.host-dependencies]
 ninja = ">=1.13.0,<2"
 libhwloc = ">=2.11.2,<3"
 libboost-devel = ">=1.86.0,<2"
 
-[feature.hpx-latest.tasks.fetch-hpx-source]
+[feature.hpx-src.tasks.fetch-hpx-source]
 cmd = "git submodule update --init"
 
-[feature.hpx-latest.tasks.set-hpx-version]
+# Set the default HPX version to the latest release candidate
+[feature.hpx-src.tasks.build-hpx-latest]
+depends-on = [{ "task" = "build-hpx", "args" = ["v1.11.0-rc1"] }]
+[feature.hpx-src.tasks.build-hpx-stable]
+depends-on = [{ "task" = "build-hpx", "args" = ["v1.10.0"] }]
+
+[feature.hpx-src.tasks.restore-submodule]
+cmd = "git restore vendor/hpx"
+
+[feature.hpx-src.tasks.build-hpx]
 args = [
     { "arg" = "tag", "default" = "v1.11.0-rc1" },
+    { "arg" = "malloc", "default" = "system" },
+    { "arg" = "build_dir", "default" = "build" },
 ]
 cmd = [
-    "git",
-    "checkout",
+    "../../scripts/build.sh",
+    "--malloc",
+    "{{ malloc }}",
+    "--build-dir",
+    "{{ build_dir }}",
+    "--hpx-version",
     "{{ tag }}",
 ]
 cwd = "vendor/hpx"
 depends-on = ["fetch-hpx-source"]
 
-[feature.hpx-latest.tasks]
-build = { cmd = ["../../scripts/build.sh"], cwd = "vendor/hpx" }
-build-hpx-latest = { depends-on = ["set-hpx-version", "build"] }
-install-all = { cmd = 'pip install --verbose -e ".[all]"', depends-on = [
-    "build-hpx-latest",
+[feature.hpx-src.tasks]
+install-all = { depends-on = [
+    "build-hpx-stable",
+    "pip-install-all",
 ] }
-install = { cmd = 'pip install --force-reinstall --verbose "."', depends-on = [
-    "build-hpx-latest",
+install = { depends-on = [
+    "build-hpx-stable",
+    "pip-install",
 ] }
-uninstall = "pip uninstall -y hpyx"
+install-all-latest = { depends-on = [
+    "build-hpx-latest",
+    "pip-install-all",
+    "restore-submodule"
+] }
+install-latest = { depends-on = [
+    "build-hpx-latest",
+    "pip-install",
+    "restore-submodule"
+] }
 
 # Conda stable hpx dependencies
-[feature.hpx.dependencies]
-hpx = ">=1.10.0,<2"
+# Commented out as they are not used in the current configuration.
+# [feature.hpx-conda.dependencies]
+# hpx = ">=1.10.0,<2"
 
 # Python Package Dependencies
 [feature.python.dependencies]
