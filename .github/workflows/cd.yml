@@ -47,7 +47,7 @@ jobs:
         with:
           pixi-version: v0.49.0
           cache: true
-      
+
       - name: Build HPX
         run: pixi run -e build313t build-hpx ${{ env.HPX_VERSION }}
 
