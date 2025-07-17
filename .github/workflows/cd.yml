@@ -28,12 +28,8 @@ jobs:
         include:
           - os: linux-intel
             runs-on: ubuntu-latest
-          - os: linux-arm
-            runs-on: ubuntu-24.04-arm
           - os: windows-intel
             runs-on: windows-latest
-          - os: windows-arm
-            runs-on: windows-11-arm
           - os: macos-intel
             # macos-13 was the last x86_64 runner
             runs-on: macos-13
@@ -55,7 +51,6 @@ jobs:
         with:
           pixi-version: v0.49.0
           cache: true
-
 
       - name: Build wheels
         run: pixi run -e build313t build-wheel
@@ -79,7 +74,6 @@ jobs:
         with:
           pixi-version: v0.49.0
           cache: true
-
 
       - name: Build wheels
         run: pixi run -e build313t build-sdist
