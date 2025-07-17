@@ -46,8 +46,12 @@ cmd = [
 cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
 depends-on = ["build-hpx-stable", "install"]
 
+[tasks.build-sdist]
+cmd = ["uv", "build", "--sdist", "dist/"]
+depends-on = ["build-hpx-stable"]
+
 [tasks.build-wheel]
-cmd = ["uv", "build"]
+cmd = "cibuildwheel --output-dir wheelhouse"
 depends-on = ["build-hpx-stable"]
 
 [dependencies]
@@ -141,6 +145,7 @@ python = ">=3.13,<4"
 # Build Dependencies
 [feature.build.pypi-dependencies]
 build = ">=1.2.2.post1, <2"
+cibuildwheel = ">=3.0.1, <4"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
