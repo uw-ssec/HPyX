@@ -47,7 +47,7 @@ cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
 depends-on = ["build-hpx-stable", "install"]
 
 [tasks.build-sdist]
-cmd = ["uv", "build", "--sdist", "dist/"]
+cmd = ["uv", "build", "--sdist", "-o", "dist"]
 depends-on = ["build-hpx-stable"]
 
 [tasks.build-wheel]
