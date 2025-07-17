@@ -57,7 +57,7 @@ jobs:
           CIBW_ARCHS: all
           CIBW_BUILD_VERBOSITY: 1
           CIBW_ENABLE: cpython-freethreading
-          CIBW_ENVIRONMENT: SKBUILD_CMAKE_ARGS="HPX_DIR=.pixi/envs/build313t/lib/cmake/HPX"
+          CIBW_ENVIRONMENT: SKBUILD_CMAKE_ARGS="-DHPX_DIR='$GITHUB_WORKSPACE/.pixi/envs/build313t/lib/cmake/HPX'"
       - name: Verify clean directory
         run: git diff --exit-code
         shell: bash
