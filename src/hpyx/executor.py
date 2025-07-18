@@ -3,6 +3,7 @@
 This module provides the HPXExecutor class, which is a subclass of Executor
 that allows for submitting tasks to the HPX runtime system.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

@@ -1,18 +1,17 @@
 site_name: HPyX
 site_description: Python library for high-performance computing with HPX
-site_url: https://hpyx.readthedocs.io/  # Required for the llmstxt plugin to work.
-
+site_url: https://hpyx.readthedocs.io/ # Required for the llmstxt plugin to work.
 
 # Repository
 repo_name: uw-ssec/HPyX
 repo_url: https://github.com/uw-ssec/HPyX
 
 plugins:
-- search
-- autorefs
-- markdown-exec
-- mkdocstrings:
-    handlers:
+  - search
+  - autorefs
+  - markdown-exec
+  - mkdocstrings:
+      handlers:
         python:
           inventories:
             - https://docs.python.org/3/objects.inv
@@ -37,11 +36,11 @@ plugins:
             signature_crossrefs: true
             summary: true
             docstring_style: sphinx
-- awesome-nav
-- mkdocs-jupyter
-- mike:
-    alias_type: symlink
-    canonical_version: latest
+  - awesome-nav
+  - mkdocs-jupyter
+  - mike:
+      alias_type: symlink
+      canonical_version: latest
 
 # Configuration
 theme:
@@ -84,28 +83,27 @@ theme:
     code: Roboto Mono
 
 extra_css:
-- css/style.css
-- css/mkdocstrings.css
-
+  - css/style.css
+  - css/mkdocstrings.css
 
 # Extensions
 markdown_extensions:
-- admonition
-- footnotes
-- attr_list
-- md_in_html
-- pymdownx.details
-- pymdownx.highlight:
-    pygments_lang_class: true
-- pymdownx.magiclink
-- pymdownx.snippets:
-    check_paths: true
-- pymdownx.superfences
-- pymdownx.tabbed:
-    alternate_style: true
-- pymdownx.tasklist:
-    custom_checkbox: true
-- pymdownx.tilde
+  - admonition
+  - footnotes
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      pygments_lang_class: true
+  - pymdownx.magiclink
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
 
 extra:
   version:

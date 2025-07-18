@@ -1,9 +1,10 @@
 ---
 title: API reference
 hide:
-- navigation
+  - navigation
 ---
 
 # ::: hpyx
+
     options:
         show_submodules: true

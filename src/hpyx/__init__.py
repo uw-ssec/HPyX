@@ -12,8 +12,6 @@ try:
 except ImportError:
     __version__ = "0.0.0"  # Fallback version
 
-from . import hello
-from . import executor
-from . import runtime
+from . import executor, hello, runtime
 
-__all__ = ["hello", "executor", "runtime"]
+__all__ = ["executor", "hello", "runtime"]

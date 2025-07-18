@@ -1,4 +1,4 @@
 nav:
   - Overview:
-    - Welcome to HPyX Documentation: index.md
+      - Welcome to HPyX Documentation: index.md
   - API Reference: reference/api.md
