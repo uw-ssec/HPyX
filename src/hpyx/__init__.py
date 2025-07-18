@@ -1,3 +1,8 @@
+"""hpyx package.
+
+Python interface for the C++ HPX library.
+"""
+
 from __future__ import annotations
 
 try:
@@ -8,6 +13,7 @@ except ImportError:
     __version__ = "0.0.0"  # Fallback version
 
 from . import hello
-from ._core import add, hpx_hello
+from . import executor
+from . import runtime
 
-__all__ = ["add", "hello", "hpx_hello"]
+__all__ = ["hello", "executor", "runtime"]

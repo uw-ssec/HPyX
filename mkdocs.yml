@@ -1,0 +1,112 @@
+site_name: HPyX
+site_description: Python library for high-performance computing with HPX
+site_url: https://hpyx.readthedocs.io/  # Required for the llmstxt plugin to work.
+
+
+# Repository
+repo_name: uw-ssec/HPyX
+repo_url: https://github.com/uw-ssec/HPyX
+
+plugins:
+- search
+- autorefs
+- markdown-exec
+- mkdocstrings:
+    handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          paths: [src/hpyx]
+          options:
+            backlinks: tree
+            docstring_options:
+              ignore_init_summary: true
+            docstring_section_style: list
+            filters: ["!^_"]
+            heading_level: 1
+            inherited_members: true
+            merge_init_into_class: true
+            parameter_headings: true
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            show_source: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            summary: true
+            docstring_style: sphinx
+- awesome-nav
+- mkdocs-jupyter
+- mike:
+    alias_type: symlink
+    canonical_version: latest
+
+# Configuration
+theme:
+  name: material
+  logo: assets/images/HPX_STELLAR_blue.png
+  custom_dir: docs/.overrides
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.tooltips
+    - navigation.footer
+    - navigation.instant.preview
+    - navigation.path
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  language: en
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+      primary: indigo
+      accent: indigo
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+      primary: indigo
+      accent: amber
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+extra_css:
+- css/style.css
+- css/mkdocstrings.css
+
+
+# Extensions
+markdown_extensions:
+- admonition
+- footnotes
+- attr_list
+- md_in_html
+- pymdownx.details
+- pymdownx.highlight:
+    pygments_lang_class: true
+- pymdownx.magiclink
+- pymdownx.snippets:
+    check_paths: true
+- pymdownx.superfences
+- pymdownx.tabbed:
+    alternate_style: true
+- pymdownx.tasklist:
+    custom_checkbox: true
+- pymdownx.tilde
+
+extra:
+  version:
+    provider: mike
