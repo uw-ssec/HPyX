@@ -49,14 +49,15 @@ nanobind = ">=2.7.0,<3"
 libboost-headers = ">=1.86.0,<2"
 threadpoolctl = ">=3.6.0,<4"
 pytest-benchmark = ">=5.1.0,<6"
+pip = ">=25.0.1,<26"
 
 [host-dependencies]
 asio = ">=1.29.0,<2"
 
 [environments]
-py313t = ["test", "python", "py313t", "hpx-src"]
-py313 = ["test", "python", "py313", "hpx-src"]
-build313t = ["build", "python", "py313t", "hpx-src"]
+py313t = ["test", "py313t", "hpx-src"]
+py313 = ["test", "py313", "hpx-src"]
+build313t = ["build", "py313t", "hpx-src"]
 docs = ["mkdocs", "py313", "hpx-conda"]
 linting = ["lint", "py313"]
 
@@ -122,10 +123,6 @@ install-latest = { depends-on = [
 # Commented out as they are not used in the current configuration.
 [feature.hpx-conda.dependencies]
 hpx = ">=1.10.0,<2"
-
-# Python Package Dependencies
-[feature.python.dependencies]
-pip = ">=25.0.1,<26"
 
 # Python Versions Dependencies
 [feature.py313t.dependencies]
