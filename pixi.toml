@@ -1,6 +1,6 @@
 [project]
 authors = ["Don Setiawan", "Ayush Nag"]
-channels = ["conda-forge"]
+channels = ["https://prefix.dev/conda-forge"]
 description = "Python Binding for HPX C++ library"
 name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
@@ -57,7 +57,8 @@ asio = ">=1.29.0,<2"
 py313t = ["test", "python", "py313t", "hpx-src"]
 py313 = ["test", "python", "py313", "hpx-src"]
 build313t = ["build", "python", "py313t", "hpx-src"]
-docs = ["mkdocs", "python", "py313", "hpx-conda"]
+docs = ["mkdocs", "py313", "hpx-conda"]
+linting = ["lint", "py313"]
 
 # Latest HPX Dependencies
 # The following configuration is for the latest HPX version,
@@ -166,3 +167,7 @@ start = { cmd = "mkdocs serve", depends-on = ["install"]}
 depends-on = ["install"]
 cmd = "mkdocs build --site-dir $READTHEDOCS_OUTPUT/html"
 env = { READTHEDOCS_OUTPUT = "." }
+
+[feature.lint.dependencies]
+pre-commit = ">=4.2.0,<5"
+identify = ">=2.6.12,<3"
