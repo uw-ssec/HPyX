@@ -13,5 +13,8 @@ except ImportError:
     __version__ = "0.0.0"  # Fallback version
 
 from . import executor, hello, runtime
+from ._core import (
+    add, hpx_hello
+)
 
-__all__ = ["executor", "hello", "runtime"]
+__all__ = ["executor", "hello", "runtime", "add", "hpx_hello"]
