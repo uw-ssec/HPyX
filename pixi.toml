@@ -1,6 +1,6 @@
 [project]
 authors = ["Don Setiawan", "Ayush Nag"]
-channels = ["https://prefix.dev/conda-forge"]
+channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
 name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
