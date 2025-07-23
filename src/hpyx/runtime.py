@@ -1,3 +1,8 @@
+"""
+This module provides the HPXRuntime class for managing the HPX runtime lifecycle.
+It allows for configuration of the runtime and provides context management for starting and stopping the HPX runtime
+"""
+
 from __future__ import annotations
 
 from types import TracebackType
@@ -6,6 +11,11 @@ import hpyx
 
 
 class HPXRuntime:
+    """
+    HPXRuntime is a context manager for managing the HPX runtime lifecycle.
+    It allows for configuration of the runtime and ensures that the runtime is properly started and stopped.
+    """
+
     def __init__(
         self,
         run_hpx_main: bool = True,
