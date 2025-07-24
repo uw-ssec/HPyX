@@ -1,5 +1,5 @@
 [project]
-authors = ["Don Setiawan", "Ayush Nag"]
+authors = ["Don Setiawan", "Ayush Nag", "Madeline Gordon", "Hartmut Kaiser"]
 channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
 name = "hpyx"
