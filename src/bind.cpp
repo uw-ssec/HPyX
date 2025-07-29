@@ -7,6 +7,7 @@
 #include <nanobind/ndarray.h>
 #include <hpx/algorithm.hpp>
 #include <hpx/execution.hpp>
+#include <hpx/version.hpp>
 #include "init_hpx.hpp"
 #include "algorithms.hpp"
 
@@ -93,6 +94,10 @@ NB_MODULE(_core, m)
 
     m.def("get_num_worker_threads", []()
           { return hpx::get_num_worker_threads(); });
+
+    m.def("hpx_complete_version", [](){
+        return hpx::complete_version();
+    });
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
