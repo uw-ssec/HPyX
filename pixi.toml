@@ -1,4 +1,7 @@
-[project]
+#                             VVVVVV  minimum `pixi` version
+"$schema" = "https://pixi.sh/v0.49.0/schema/manifest/schema.json"
+
+[workspace]
 authors = ["Don Setiawan", "Ayush Nag", "Madeline Gordon", "Hartmut Kaiser"]
 channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
