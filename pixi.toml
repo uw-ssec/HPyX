@@ -2,6 +2,7 @@
 "$schema" = "https://pixi.sh/v0.49.0/schema/manifest/schema.json"
 
 [workspace]
+requires-pixi = ">=0.49,<1.0"
 authors = ["Don Setiawan", "Ayush Nag", "Madeline Gordon", "Hartmut Kaiser"]
 channels = ["conda-forge"]
 description = "Python Binding for HPX C++ library"
@@ -78,7 +79,7 @@ cmd = "git submodule update --init"
 [feature.hpx-src.tasks.build-hpx-latest]
 depends-on = [{ "task" = "build-hpx", "args" = ["v1.11.0-rc1"] }]
 [feature.hpx-src.tasks.build-hpx-stable]
-depends-on = [{ "task" = "build-hpx", "args" = ["v1.10.0"] }]
+depends-on = [{ "task" = "build-hpx", "args" = ["v1.11.0"] }]
 
 [feature.hpx-src.tasks.restore-submodule]
 cmd = "git restore vendor/hpx"
@@ -124,7 +125,7 @@ install-latest = { depends-on = [
 # Conda stable hpx dependencies
 # Commented out as they are not used in the current configuration.
 [feature.hpx-conda.dependencies]
-hpx = ">=1.10.0,<2"
+hpx = ">=1.11.0,<2"
 
 # Python Package Dependencies
 [feature.python.dependencies]
@@ -132,10 +133,10 @@ pip = ">=25.0.1,<26"
 
 # Python Versions Dependencies
 [feature.py313t.dependencies]
-python-freethreading = ">=3.13.3,<4"
+python-freethreading = ">=3.13,<4"
 
 [feature.py313.dependencies]
-python = ">=3.13.3,<4"
+python = ">=3.13,<4"
 
 # Build Dependencies
 [feature.build.pypi-dependencies]
