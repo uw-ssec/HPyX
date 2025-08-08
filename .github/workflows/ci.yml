@@ -26,16 +26,13 @@ jobs:
       matrix:
         pixi-env: ["py313t", "py313"]
         runs-on: [ubuntu-latest, macos-14]
-        experimental: [false]
         # Note: Windows support is experimental and requires additional setup.
         # Uncomment the following lines to enable Windows testing.
         # include:
         #   - pixi-env: "py313t"
         #     runs-on: windows-latest
-        #     experimental: true
         #   - pixi-env: "py313"
         #     runs-on: windows-latest
-        #     experimental: true
 
     steps:
       - uses: actions/checkout@v4
