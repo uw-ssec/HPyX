@@ -3,6 +3,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/ndarray.h>
 #include <hpx/numeric.hpp>
+#include <hpx/algorithm.hpp>
 
 namespace nb = nanobind;
 
@@ -81,6 +82,38 @@ double dot1d(
 //     );
 //     return C;
 // }
+
+// HPX For loop 
+void hpx_for_loop(
+    nb::callable function,
+    nb::iterable iterable,
+    std::string policy = "seq"
+) {
+    // Get start and end indices
+    int start = 0;
+    int end = nb::len(iterable);
+
+    // Use hpx for_loop to apply the function to each element in the iterable
+    if (policy == "par") {
+        hpx::experimental::for_loop(
+            hpx::execution::par, start, end,
+            [&](std::size_t i) {
+                auto data = iterable[i];
+                iterable[i] = function(data);
+            }
+        );
+    } else if (policy == "seq") {
+        hpx::experimental::for_loop(
+            hpx::execution::seq, start, end,
+            [&](std::size_t i) {
+                auto data = iterable[i];
+                iterable[i] = function(data);
+            }
+        );
+    } else {
+        throw std::invalid_argument("Invalid execution policy: " + policy);
+    }
+}
 
 
 } // namespace algorithms
