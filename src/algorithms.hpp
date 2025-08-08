@@ -17,6 +17,13 @@ double dot1d(
 //     nb::ndarray<nb::numpy, const double, nb::c_contig> B
 // );
 
+// HPX For loop 
+void hpx_for_loop(
+    nb::callable function,
+    nb::iterable iterable,
+    std::string policy
+);
+
 }
 
 #endif // ALGORITHMS_HPP

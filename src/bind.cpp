@@ -88,6 +88,7 @@ NB_MODULE(_core, m)
     //     return result; }, "f"_a, nb::arg("*args"));
 
     m.def("dot1d", &algorithms::dot1d, "a"_a, "b"_a);
+    m.def("hpx_for_loop", &algorithms::hpx_for_loop, "function"_a, "iterable"_a, "policy"_a, "Parallel for loop over an interable");
     // m.def("matmul2d", &matmul2d, "A"_a, "B"_a);
     m.def("init_hpx_runtime", &init_hpx_runtime);
     m.def("stop_hpx_runtime", &stop_hpx_runtime);
