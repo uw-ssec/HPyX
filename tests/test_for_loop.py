@@ -257,9 +257,9 @@ def test_for_loop_numpy_large_array():
         hpyx.multiprocessing.for_loop(sqrt_plus_one, arr, "seq")
     
     # Verify a few elements
-    assert abs(arr[0] - 1.0) < 1e-6  # sqrt(0) + 1 = 1
-    assert abs(arr[4] - 3.0) < 1e-6  # sqrt(4) + 1 = 3
-    assert abs(arr[9] - 4.0) < 1e-6  # sqrt(9) + 1 = 4
+    np.testing.assert_almost_equal(arr[0], 1.0, decimal=6)  # sqrt(0) + 1 = 1
+    np.testing.assert_almost_equal(arr[4], 3.0, decimal=6)  # sqrt(4) + 1 = 3
+    np.testing.assert_almost_equal(arr[9], 4.0, decimal=6)  # sqrt(9) + 1 = 4
 
 
 def test_for_loop_numpy_empty_array():
