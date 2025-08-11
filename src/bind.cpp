@@ -33,6 +33,8 @@ void bind_hpx_future(nb::module_ &m, const char *name) {
             auto result = f.get();
             nb::gil_scoped_release release;
             return result; })
+        // TODO: Implement .then function that works with nanobind callable
+        // Currently, the chaining of futures is not working correctly
         .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args) {
             std::cout << "Calling then with callback" << std::endl;
             auto fut = f.then([callback, args](hpx::future<T> && future) -> nb::object {
