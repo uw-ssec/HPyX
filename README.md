@@ -123,6 +123,22 @@ To run tests:
 pixi run test
 ```
 
+#### Troubleshooting Test Issues
+
+If you encounter errors related to duplicate library paths on macOS/Unix systems, such as:
+
+```text
+duplicate LC_RPATH '@loader_path'
+```
+
+Run the library path fix script in an environment:
+
+```bash
+pixi run fix-lib-paths
+```
+
+This script will automatically detect and remove duplicate RPATH entries from dynamic libraries in your conda environment, which can occur due to dependency conflicts between conda packages.
+
 ### Code quality
 
 To run linting on all files:
