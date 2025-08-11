@@ -10,6 +10,7 @@
 #include <hpx/version.hpp>
 #include "init_hpx.hpp"
 #include "algorithms.hpp"
+#include "futures.hpp"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -17,28 +18,11 @@
 namespace nb = nanobind;
 using namespace nb::literals;
 
-int hpx_hello()
-{
-    // Say hello to the world!
-    hpx::cout << "Hello World!\n"
-              << std::flush;
-    return 0;
-}
-
-void hpx_async_add(int a, int b)
-{
-    auto add = [](int number, int value_to_add)
-    {
-        return number + value_to_add;
-    };
-
-    hpx::future<int> add_lazy = hpx::async(add, a, b);
-    std::cout << "Calling hpx::async(add, " << a << ", " << b
-              << ")" << std::endl;
-    int lazy_result = add_lazy.get();
-    std::cout << "Which returned: " << lazy_result << std::endl;
-}
-
+// Function to bind HPX future for nanobind
+// This function binds the hpx::future<T> type to nanobind, allowing it
+// to be used in Python code. It provides methods to get the result,
+// check if the future is ready, and to attach callbacks that will be
+// called when the future is ready.
 template <typename T>
 void bind_hpx_future(nb::module_ &m, const char *name) {
     nb::class_<hpx::future<T>>(m, name)
@@ -49,34 +33,48 @@ void bind_hpx_future(nb::module_ &m, const char *name) {
             auto result = f.get();
             nb::gil_scoped_release release;
             return result; })
-        .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args)
-             {
-            auto fut = f.then([callback, args](hpx::future<T> && f) -> nb::object {
+        .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args) {
+            std::cout << "Calling then with callback" << std::endl;
+            auto fut = f.then([callback, args](hpx::future<T> && future) -> nb::object {
+                std::cout << "Inside then callback" << std::endl;
                 nb::gil_scoped_acquire acquire;
-                T result = f.get();
-                return callback(result, *args);
+                return callback(*args);
             });
-            return fut; }, "callback"_a, nb::arg("*args"));
+            return fut; 
+        }, "callback"_a, nb::arg("*args"))
+        .def("is_ready", [](hpx::future<T> &f) -> bool {
+            return f.is_ready();
+        });
 }
 
 NB_MODULE(_core, m)
 {
     m.doc() = "Python bindings for HPX C++ API";
-    m.def("add", [](int a, int b)
-          { return a + b; }, "a"_a, "b"_a);
-    m.def("hpx_hello", &hpx_hello);
-    m.def("hpx_async_add", &hpx_async_add, "a"_a, "b"_a);
 
+    // Bind HPX future for nanobind
     bind_hpx_future<nb::object>(m, "future");
 
-    m.def("hpx_async", [](nb::callable f, nb::args args)
-          {
-        auto result = hpx::async([f, args]() {
-            nb::gil_scoped_acquire acquire;
-            return f(*args);
-        });
-        return result; }, "f"_a, nb::arg("*args"));
+    // Binding futures/async functionalities
+    m.def("hpx_async", &futures::hpx_async, "f"_a, nb::arg("*args"));
+    m.def("hpx_async_add", &futures::hpx_async_add, "a"_a, "b"_a);
 
+    // Binding algorithms functionalities
+    m.def("dot1d", &algorithms::dot1d, "a"_a, "b"_a);
+    m.def("hpx_for_loop", &algorithms::hpx_for_loop, "function"_a, "iterable"_a, "policy"_a, "Parallel for loop over an interable");
+    
+    // Binding HPX runtime initialization and shutdown
+    m.def("init_hpx_runtime", &init_hpx_runtime);
+    m.def("stop_hpx_runtime", &stop_hpx_runtime);
+
+    // Binding HPX Utility functions
+    m.def("get_num_worker_threads", []()
+          { return hpx::get_num_worker_threads(); });
+    m.def("hpx_complete_version", [](){
+        return hpx::complete_version();
+    });
+
+    // TODO: Uncomment and implement the following if needed
+    //
     // m.def("hpx_transform", [](nb::callable f, nb::args args)
     //       {
     //     auto result = hpx::transform(
@@ -86,19 +84,8 @@ NB_MODULE(_core, m)
     //             return f(x);
     //         });
     //     return result; }, "f"_a, nb::arg("*args"));
-
-    m.def("dot1d", &algorithms::dot1d, "a"_a, "b"_a);
-    m.def("hpx_for_loop", &algorithms::hpx_for_loop, "function"_a, "iterable"_a, "policy"_a, "Parallel for loop over an interable");
+    //
     // m.def("matmul2d", &matmul2d, "A"_a, "B"_a);
-    m.def("init_hpx_runtime", &init_hpx_runtime);
-    m.def("stop_hpx_runtime", &stop_hpx_runtime);
-
-    m.def("get_num_worker_threads", []()
-          { return hpx::get_num_worker_threads(); });
-
-    m.def("hpx_complete_version", [](){
-        return hpx::complete_version();
-    });
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
