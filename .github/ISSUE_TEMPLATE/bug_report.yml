@@ -1,0 +1,133 @@
+name: "🐞 Bug report"
+description: "File a reproducible problem with HPyX software."
+title: "[Bug]: <short summary>"
+labels: ["bug", "triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Pre-flight checklist
+      description: Please confirm before submitting
+      options:
+        - label: I have searched the existing issues
+          required: true
+        - label: I have read the [contributing guidelines](https://github.com/uw-ssec/HPyX/blob/main/docs/CONTRIBUTING.md)
+          required: true
+        - label: I have checked the [HPyX documentation](https://hpyx.readthedocs.io/)
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: "When I run the HPyX function/method ..., I expected ..., but instead ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal, complete, and verifiable reproduction using pixi commands.
+      placeholder: |
+        1. Set up environment: `pixi shell -e py313`
+        2. Install HPyX: `pixi run install`
+        3. Run the problematic code:
+           ```python
+           import hpyx
+           # Your reproducible example here
+           ```
+        4. Observe the error/unexpected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error logs and output
+      description: |
+        Please paste complete error logs, stack traces, or unexpected output. 
+        For build issues, include CMake output or compilation errors.
+        Remove any sensitive data!
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: HPyX version
+      description: Check with `python -c "import hpyx; print(hpyx.__version__)"`
+      placeholder: "0.1.dev36"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating System
+      options:
+        - Linux
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Windows
+        - Other (specify below)
+    validations:
+      required: true
+  - type: input
+    id: platform_other
+    attributes:
+      label: Other OS details
+      placeholder: "Ubuntu 22.04, Windows 11, etc."
+  - type: dropdown
+    id: python_env
+    attributes:
+      label: Python Environment
+      description: Which pixi environment are you using?
+      options:
+        - py313t (Python 3.13 free-threading)
+        - py313 (Standard Python 3.13)
+        - build313t (Build environment)
+        - Custom/Other
+    validations:
+      required: true
+  - type: textarea
+    id: python_details
+    attributes:
+      label: Python and Environment Details
+      description: |
+        Please provide output from:
+        - `pixi run get-python-version`
+        - `python -c "import sys; print(sys.version)"`
+        - Are you using free-threading Python (--disable-gil)?
+      render: shell
+  - type: textarea
+    id: hpx_details
+    attributes:
+      label: HPX Build Information
+      description: |
+        If this is related to HPX C++ library:
+        - Which HPX version? (stable v1.11.0 or latest v1.11.0-rc1)
+        - Any custom HPX build configurations?
+        - Check `vendor/hpx/build/` for build artifacts
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: |
+        Any other relevant information:
+        - Related to parallel execution or free-threading?
+        - Performance-related issue?
+        - C++ binding specific problem?
+        - Dependencies or build system issues?
+  - type: markdown
+    attributes:
+      value: |
+        ## 🔧 Debugging Tips
+        
+        Before submitting, you might try:
+        - Run `pixi run test` to check if tests pass
+        - Try a fresh build: `pixi run build-hpx-stable && pixi run install`
+        - Check if the issue occurs in both `py313` and `py313t` environments
+        
+        Thank you for helping us improve HPyX! 🙏

@@ -1,0 +1,155 @@
+name: "🐢 Performance issue"
+description: "Report slowness, excessive memory usage, or suboptimal parallel performance."
+title: "[Perf]: <short summary>"
+labels: ["performance", "triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I have searched the existing issues
+          required: true
+        - label: I have run benchmarks using `pixi run benchmark`
+          required: true
+        - label: I have tested with both free-threading and standard Python environments
+          required: false
+  - type: dropdown
+    id: performance_type
+    attributes:
+      label: Performance Issue Type
+      options:
+        - Slow execution time
+        - High memory usage
+        - Poor parallel scaling
+        - GIL-related bottleneck
+        - Free-threading performance regression
+        - HPX C++ library performance
+        - Python binding overhead
+        - Build/compilation performance
+        - Other (specify below)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the performance problem
+      description: |
+        Provide a clear description of the performance issue.
+        Include specific metrics if possible (execution time, memory usage, CPU utilization).
+      placeholder: |
+        When running [specific operation], the performance is significantly slower than expected.
+        
+        Observed metrics:
+        - Execution time: X seconds (expected: Y seconds)
+        - Memory usage: X MB (expected: Y MB)
+        - CPU utilization: X% across Y cores
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproducible code and environment
+      description: |
+        Provide code to reproduce the performance issue and the environment setup.
+      placeholder: |
+        Environment setup:
+        ```bash
+        pixi shell -e py313t
+        pixi run install
+        ```
+        
+        Reproducible code:
+        ```python
+        import hpyx
+        import time
+        
+        # Your performance test code here
+        start = time.time()
+        # ... problematic operation
+        print(f"Execution time: {time.time() - start:.2f}s")
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: benchmark_results
+    attributes:
+      label: Benchmark Results
+      description: |
+        If applicable, provide benchmark results using `pixi run benchmark`.
+        Compare results across different environments (py313 vs py313t).
+      render: shell
+  - type: dropdown
+    id: environment_tested
+    attributes:
+      label: Environments Tested
+      description: Which pixi environments have you tested?
+      multiple: true
+      options:
+        - py313t (Python 3.13 free-threading)
+        - py313 (Standard Python 3.13)
+        - build313t (Build environment)
+  - type: textarea
+    id: system_info
+    attributes:
+      label: System Information
+      description: |
+        Provide system details that might affect performance:
+      placeholder: |
+        - OS: macOS 15.0 / Ubuntu 22.04 / Windows 11
+        - CPU: Intel i7-12700K / Apple M2 Pro / AMD Ryzen 9 5900X
+        - RAM: 32GB
+        - Python version: `pixi run get-python-version`
+        - HPX version: stable v1.11.0 / latest v1.11.0-rc1
+        - Free-threading enabled: Yes/No
+    validations:
+      required: true
+  - type: input
+    id: hpyx_version
+    attributes:
+      label: HPyX Version
+      description: Check with `python -c "import hpyx; print(hpyx.__version__)"`
+      placeholder: "0.1.dev36"
+    validations:
+      required: true
+  - type: textarea
+    id: expected_performance
+    attributes:
+      label: Expected Performance
+      description: |
+        What performance do you expect and why?
+        - Theoretical calculations
+        - Comparison with other tools/libraries
+        - Previous HPyX versions
+        - HPX C++ library performance
+  - type: textarea
+    id: profiling_data
+    attributes:
+      label: Profiling Data
+      description: |
+        If you have profiling data, please include it:
+        - Python profiler output (cProfile, line_profiler)
+        - System monitoring data (htop, Activity Monitor)
+        - HPX performance counters
+      render: shell
+  - type: textarea
+    id: workarounds
+    attributes:
+      label: Workarounds or Optimizations Tried
+      description: |
+        What have you tried to improve performance?
+        - Different HPyX APIs or approaches
+        - HPX configuration changes
+        - Python optimization techniques
+        - Hardware-specific optimizations
+  - type: markdown
+    attributes:
+      value: |
+        ## 🔧 Performance Analysis Tips
+        
+        For better analysis, consider providing:
+        - Run `pixi run benchmark` with specific test patterns
+        - Compare performance between `py313` and `py313t` environments
+        - Profile both Python and C++ code paths
+        - Test with different thread counts and workload sizes
+        
+        Thank you for helping us optimize HPyX! 🚀

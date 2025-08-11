@@ -1,0 +1,127 @@
+name: "✨ Feature request"
+description: "Suggest an idea or enhancement for HPyX."
+title: "[Feature]: <short summary>"
+labels: ["enhancement", "triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I have searched the existing issues and discussions
+          required: true
+        - label: I have read the [HPyX documentation](https://hpyx.readthedocs.io/) and [contributing guidelines](https://github.com/uw-ssec/HPyX/blob/main/docs/CONTRIBUTING.md)
+          required: true
+        - label: I understand that HPyX is in active development and APIs may change
+          required: true
+  - type: dropdown
+    id: feature_category
+    attributes:
+      label: Feature Category
+      description: What type of feature are you requesting?
+      options:
+        - Core HPX C++ binding
+        - High-level Python API
+        - Free-threading optimization
+        - Performance improvement
+        - Documentation enhancement
+        - Build system / Development workflow
+        - Testing infrastructure
+        - Examples and tutorials
+        - Other (specify below)
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: |
+        What pain point, limitation, or use case does this feature address?
+        How would this benefit HPyX users or development?
+      placeholder: |
+        As a Python developer using HPyX for parallel computing, I need...
+        Currently, when I try to..., I face the limitation that...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: |
+        Describe your proposed solution or API design.
+        Include code examples if possible.
+      placeholder: |
+        I propose adding a new function/method/feature that...
+        
+        Example usage:
+        ```python
+        import hpyx
+        # Your proposed API here
+        ```
+  - type: textarea
+    id: hpx_relation
+    attributes:
+      label: Relation to HPX C++ Library
+      description: |
+        If applicable:
+        - Which HPX C++ features would this expose to Python?
+        - Are there existing HPX APIs this would wrap?
+        - Would this require new C++ bindings?
+      placeholder: |
+        This would expose HPX's ... functionality to Python users
+        Related HPX documentation: https://hpx-docs.stellar-group.org/...
+  - type: textarea
+    id: free_threading
+    attributes:
+      label: Free-Threading Considerations
+      description: |
+        How should this feature work with Python 3.13's free-threading mode?
+        Any specific optimizations or considerations needed?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: |
+        What alternatives have you considered?
+        - Existing workarounds?
+        - Other Python libraries that provide similar functionality?
+        - Manual C++ integration approaches?
+  - type: textarea
+    id: implementation_notes
+    attributes:
+      label: Implementation Notes
+      description: |
+        If you have ideas about implementation:
+        - Would this require changes to the core binding layer?
+        - Performance implications?
+        - Breaking changes to existing APIs?
+        - Testing requirements?
+  - type: checkboxes
+    attributes:
+      label: Contribution Interest
+      description: Would you be interested in contributing to this feature?
+      options:
+        - label: I would like to work on implementing this feature
+        - label: I can help with testing and feedback
+        - label: I can contribute documentation or examples
+        - label: I prefer to only provide requirements and feedback
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other relevant information:
+        - Links to research papers or references
+        - Screenshots or mockups
+        - Performance benchmarks or requirements
+        - Timeline considerations
+  - type: markdown
+    attributes:
+      value: |
+        ## 📚 Helpful Resources
+        
+        - [HPX C++ Documentation](https://hpx-docs.stellar-group.org/)
+        - [Nanobind Documentation](https://nanobind.readthedocs.io/)
+        - [Python Free-Threading Guide](https://docs.python.org/3.13/whatsnew/3.13.html#free-threaded-cpython)
+        - [HPyX Contributing Guide](https://github.com/uw-ssec/HPyX/blob/main/docs/CONTRIBUTING.md)
+        
+        Thank you for helping shape the future of HPyX! ✨
