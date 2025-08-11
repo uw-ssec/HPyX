@@ -13,9 +13,14 @@
 ## Project Overview
 
 HPyX provides Python bindings for the HPX C++ Parallelism Library using Nanobind
-and leveraging Python 3.13's free-threading capabilities. The goal is to make
+and leveraging Python 3.13's free-threading capabilities. This project aims to make
 HPX's powerful parallel processing features accessible to Python developers
 while achieving optimal performance through true multi-threading.
+
+**Status**: HPyX is currently in active development as part of a research project
+at the University of Washington's Scientific Software Engineering Center (SSEC).
+The project is experimental and APIs may change as we explore optimal integration
+patterns between Python's free-threading mode and HPX's parallel execution model.
 
 ## What is HPX?
 
@@ -31,16 +36,28 @@ Standard. It provides:
 
 ## Features
 
-- Python interface to HPX's parallel algorithms and components
-- True parallel execution using Python 3.13's free-threading mode (experimental)
-- High-performance bindings using Nanobind
-- Pythonic API that follows Python conventions while exposing HPX power
-- Comprehensive documentation and examples
+- **Python Interface**: Clean Python API for HPX's parallel algorithms and components
+- **True Parallel Execution**: Leverages Python 3.13's experimental free-threading mode
+- **High-Performance Bindings**: Uses Nanobind for minimal-overhead C++ integration
+- **Pythonic Design**: APIs that follow Python conventions while exposing HPX capabilities
+- **Comprehensive Testing**: Automated testing and benchmarking framework
+- **Cross-Platform Support**: Builds consistently on Linux, macOS, and Windows
+
+### Current Development Focus
+
+- Core HPX binding infrastructure
+- Python 3.13 free-threading compatibility
+- Parallel algorithm implementations
+- Performance optimization and benchmarking
+- API design and developer experience
 
 ## Installation and Building
 
-HPyX uses [pixi](https://pixi.sh/) for environment and dependency management.
-This allows for consistent development environments across platforms.
+**Note**: HPyX is currently in active development. Pre-built packages are not yet
+available. Installation requires building from source using the provided build system.
+
+HPyX uses [pixi](https://pixi.sh/) for environment and dependency management,
+which provides reproducible builds and handles complex C++ dependencies automatically.
 
 ### Prerequisites
 
@@ -124,25 +141,72 @@ pixi run get-python-version
 
 ## Development
 
-HPyX uses Nanobind to create efficient Python bindings for the HPX C++ library.
-The build system is based on CMake and scikit-build-core for seamless
-integration between C++ and Python components.
+HPyX uses [pixi](https://pixi.sh/) for reproducible development environments and
+dependency management. This approach ensures consistent builds across different
+platforms and simplifies the complex build process for HPX and its dependencies.
+
+### Development Environment
+
+HPyX provides several predefined environments optimized for different use cases:
+
+- `py313t` - Python 3.13 with free threading for testing and development
+- `py313` - Standard Python 3.13 environment for compatibility testing
+- `build313t` - Environment for building with Python 3.13 free threading
+- `docs` - Environment for documentation development with MkDocs
+- `linting` - Environment for code quality checks and pre-commit hooks
+
+### Build Process
+
+The build system integrates several complex components:
+
+1. **HPX C++ Library**: Built from source using git submodules for optimal performance
+2. **Nanobind Integration**: Efficient Python-C++ bindings with minimal overhead
+3. **Free-Threading Support**: Optimizations for Python 3.13's experimental free-threading mode
+4. **Cross-Platform Support**: Consistent builds on Linux, macOS, and Windows
 
 ### Technical Approach
 
-Our approach consists of the following components:
+Our development approach consists of:
 
-1. **Core Binding Layer**: Low-level bindings for HPX C++ core functionality
-   using Nanobind
+1. **Core Binding Layer**: Low-level bindings for HPX C++ core functionality using Nanobind
 2. **High-Level Python API**: A Pythonic interface that wraps the core bindings
-3. **Free-Threading Integration**: Mechanisms to ensure the bindings work
-   optimally with Python's free-threading mode
-4. **Testing Framework**: Comprehensive tests to verify functionality and
-   performance
+3. **Free-Threading Integration**: Mechanisms to ensure the bindings work optimally with Python's free-threading mode
+4. **Comprehensive Testing**: Performance benchmarks and functionality tests to verify behavior
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions to HPyX! Whether you're interested in fixing bugs, adding new features, improving documentation, or helping with testing, your contributions are valuable.
+
+Please see our [Contributing Guide](docs/CONTRIBUTING.md) for detailed information on:
+
+- Setting up the development environment with pixi
+- Understanding the build system and HPX integration
+- Running tests and benchmarks
+- Code quality standards and linting
+- Pull request process
+
+For a quick start:
+
+1. Install [pixi](https://pixi.sh/) for environment management
+2. Clone the repository and activate the development environment:
+
+   ```bash
+   git clone https://github.com/uw-ssec/HPyX.git
+   cd HPyX
+   pixi shell -e py313
+   ```
+
+3. Install the package in development mode:
+
+   ```bash
+   pixi run install-all
+   ```
+
+4. Run tests to verify your setup:
+
+   ```bash
+   pixi run test
+   ```
 
 Thanks to our contributors so far!
 
