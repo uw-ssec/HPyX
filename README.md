@@ -158,45 +158,7 @@ Our approach consists of the following components:
 
 ## Contributing
 
-We welcome contributions to HPyX! Whether you're interested in fixing bugs, adding new features, improving documentation, or helping with testing, your contributions are valuable.
-
-Please see our [Contributing Guide](docs/CONTRIBUTING.md) for detailed information on:
-
-- Setting up the development environment with pixi
-- Understanding the build system and HPX integration  
-- Running tests and benchmarks
-- Troubleshooting common issues (including library path problems)
-- Code quality standards and linting
-- Pull request process
-
-For a quick start:
-
-1. Install [pixi](https://pixi.sh/) for environment management
-2. Clone the repository and activate the development environment:
-
-   ```bash
-   git clone https://github.com/uw-ssec/HPyX.git
-   cd HPyX
-   pixi shell -e py313
-   ```
-
-3. Install the package in development mode:
-
-   ```bash
-   pixi run install-all
-   ```
-
-4. Run tests to verify your setup:
-
-   ```bash
-   pixi run test
-   ```
-
-If you encounter library path issues during testing, run:
-
-```bash
-pixi run fix-lib-paths
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 Thanks to our contributors so far!
 
