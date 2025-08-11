@@ -83,7 +83,14 @@ if(APPLE)
 endif()
 
 # Create the Python module from the source file
-nanobind_add_module(_core FREE_THREADED src/bind.cpp src/init_hpx.cpp src/algorithms.cpp)
+nanobind_add_module(
+  _core
+  FREE_THREADED
+  src/bind.cpp
+  src/init_hpx.cpp
+  src/algorithms.cpp
+  src/futures.cpp
+)
 
 # TODO: Add new modules here, maybe even HPX modules?
 # # Define a list of targets to link against the required libraries.

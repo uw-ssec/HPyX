@@ -38,7 +38,6 @@ class HPXRuntime:
 
         if os_threads != "auto":
             cfg.append(f"hpx.os_threads!={os_threads}")
-
         hpyx._core.init_hpx_runtime(cfg)
 
     def __enter__(self: HPXRuntime) -> HPXRuntime:

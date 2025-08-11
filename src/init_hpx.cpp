@@ -94,6 +94,7 @@ void stop_hpx_runtime()
     rts = nullptr;
     if (r != nullptr)
     {
+        // Release GIL during HPX runtime shutdown
         nb::gil_scoped_release release;
         delete r;
     }

@@ -12,9 +12,8 @@ try:
 except ImportError:
     __version__ = "0.0.0"  # Fallback version
 
-from . import hello, multiprocessing
-from ._core import add, hpx_hello
+from . import futures, multiprocessing
 from .executor import HPXExecutor
 from .runtime import HPXRuntime
 
-__all__ = ["HPXExecutor", "HPXRuntime", "add", "hello", "hpx_hello", "multiprocessing"]
+__all__ = ["HPXExecutor", "HPXRuntime", "futures", "multiprocessing"]
