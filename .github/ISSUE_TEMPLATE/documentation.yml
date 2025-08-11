@@ -1,0 +1,141 @@
+name: "📚 Documentation gap"
+description: "Report missing, confusing, or outdated documentation."
+title: "[Docs]: <short summary>"
+labels: ["documentation"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I have searched the existing issues
+          required: true
+        - label: I have checked the [HPyX documentation site](https://hpyx.readthedocs.io/)
+          required: true
+        - label: I have reviewed the [contributing guidelines](https://github.com/uw-ssec/HPyX/blob/main/docs/CONTRIBUTING.md)
+          required: false
+  - type: dropdown
+    id: documentation_type
+    attributes:
+      label: Documentation Type
+      options:
+        - API reference (missing/incorrect docstrings)
+        - User guide / tutorial
+        - Installation instructions
+        - Contributing guidelines
+        - Performance and benchmarking guide
+        - Free-threading usage guide
+        - HPX C++ integration examples
+        - Build system documentation
+        - README or project overview
+        - Code comments
+        - Other (specify below)
+    validations:
+      required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: Location of the issue
+      description: |
+        Specify where the documentation issue is located.
+        Provide links, file paths, or section names.
+      placeholder: |
+        - Documentation site: https://hpyx.readthedocs.io/en/latest/...
+        - Source file: docs/index.md, README.md, src/hpyx/module.py
+        - Function/class: hpyx.runtime.some_function()
+        - Section: "Installation Guide > Environment Setup"
+    validations:
+      required: true
+  - type: dropdown
+    id: issue_category
+    attributes:
+      label: Issue Category
+      options:
+        - Missing documentation
+        - Incorrect/outdated information
+        - Confusing explanation
+        - Poor examples
+        - Missing examples
+        - Broken links
+        - Formatting issues
+        - Translation needed
+        - Accessibility concerns
+    validations:
+      required: true
+  - type: textarea
+    id: problem_description
+    attributes:
+      label: Problem Description
+      description: |
+        Describe what's wrong with the current documentation.
+        What information is missing, incorrect, or confusing?
+      placeholder: |
+        The current documentation doesn't explain...
+        The example code doesn't work because...
+        The installation instructions are missing steps for...
+    validations:
+      required: true
+  - type: textarea
+    id: suggested_improvement
+    attributes:
+      label: Suggested Improvement
+      description: |
+        How would you improve the documentation?
+        Provide specific suggestions, corrections, or new content.
+      placeholder: |
+        The documentation should include:
+        - Clear explanation of...
+        - Working example showing...
+        - Step-by-step guide for...
+        
+        Suggested addition:
+        ```python
+        # Example code
+        import hpyx
+        # ...
+        ```
+  - type: textarea
+    id: target_audience
+    attributes:
+      label: Target Audience
+      description: |
+        Who would benefit from this documentation improvement?
+      placeholder: |
+        - New users trying to get started
+        - Developers working on performance optimization
+        - Contributors to the HPyX project
+        - Users migrating from other parallel computing libraries
+  - type: checkboxes
+    attributes:
+      label: Contribution Interest
+      options:
+        - label: I would like to help write/improve this documentation
+        - label: I can provide technical review
+        - label: I can help with examples and use cases
+        - label: I prefer to only report the issue
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other relevant information:
+        - Related to specific HPyX features?
+        - Free-threading specific documentation?
+        - Performance or benchmarking related?
+        - Cross-references to HPX C++ documentation needed?
+  - type: markdown
+    attributes:
+      value: |
+        ## 📖 Documentation Resources
+        
+        - [HPyX Documentation](https://hpyx.readthedocs.io/)
+        - [Contributing Guide](https://github.com/uw-ssec/HPyX/blob/main/docs/CONTRIBUTING.md)
+        - [MkDocs Documentation](https://www.mkdocs.org/) (our documentation system)
+        - [HPX C++ Documentation](https://hpx-docs.stellar-group.org/)
+        
+        To work on documentation locally:
+        ```bash
+        pixi shell -e docs
+        pixi run start  # Start local documentation server
+        ```
+        
+        Thank you for helping improve HPyX documentation! 📚

@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 General question / discussion
+    url: https://github.com/uw-ssec/HPyX/discussions
+    about: Please ask questions about HPyX usage, development, or general discussions here instead of opening an issue.
+  - name: 📖 Documentation
+    url: https://hpyx.readthedocs.io/
+    about: Check the official HPyX documentation for usage guides and API reference.
+  - name: 🔧 Contributing Guide
+    url: https://github.com/uw-ssec/HPyX/blob/main/docs/CONTRIBUTING.md
+    about: Learn how to contribute to HPyX development, including setup and workflow.
+  - name: 🏛️ HPX C++ Library
+    url: https://hpx-docs.stellar-group.org/
+    about: Official documentation for the underlying HPX C++ library.
