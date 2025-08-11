@@ -6,7 +6,7 @@ import time
 from typing import Callable, Any
 import pytest
 import numpy as np
-from hpyx.futures.submit import submit
+from hpyx.futures import submit
 from hpyx.runtime import HPXRuntime
 
 
