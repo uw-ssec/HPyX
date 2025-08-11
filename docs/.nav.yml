@@ -1,5 +1,6 @@
 nav:
   - Overview:
       - Welcome to HPyX Documentation: index.md
+      - Usage Guide: usage.md
   - API Reference: reference/api.md
   - Contributing: CONTRIBUTING.md
