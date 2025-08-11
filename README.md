@@ -114,7 +114,7 @@ If you encounter errors related to duplicate library paths on macOS/Unix systems
 duplicate LC_RPATH '@loader_path'
 ```
 
-Run the library path fix script:
+Run the library path fix script in an environment:
 
 ```bash
 pixi run fix-lib-paths
