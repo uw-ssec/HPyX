@@ -106,6 +106,22 @@ To run tests:
 pixi run test
 ```
 
+#### Troubleshooting Test Issues
+
+If you encounter errors related to duplicate library paths on macOS/Unix systems, such as:
+
+```text
+duplicate LC_RPATH '@loader_path'
+```
+
+Run the library path fix script:
+
+```bash
+pixi run fix-lib-paths
+```
+
+This script will automatically detect and remove duplicate RPATH entries from dynamic libraries in your conda environment, which can occur due to dependency conflicts between conda packages.
+
 ### Code quality
 
 To run linting on all files:
@@ -142,7 +158,45 @@ Our approach consists of the following components:
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions to HPyX! Whether you're interested in fixing bugs, adding new features, improving documentation, or helping with testing, your contributions are valuable.
+
+Please see our [Contributing Guide](docs/CONTRIBUTING.md) for detailed information on:
+
+- Setting up the development environment with pixi
+- Understanding the build system and HPX integration  
+- Running tests and benchmarks
+- Troubleshooting common issues (including library path problems)
+- Code quality standards and linting
+- Pull request process
+
+For a quick start:
+
+1. Install [pixi](https://pixi.sh/) for environment management
+2. Clone the repository and activate the development environment:
+
+   ```bash
+   git clone https://github.com/uw-ssec/HPyX.git
+   cd HPyX
+   pixi shell -e py313
+   ```
+
+3. Install the package in development mode:
+
+   ```bash
+   pixi run install-all
+   ```
+
+4. Run tests to verify your setup:
+
+   ```bash
+   pixi run test
+   ```
+
+If you encounter library path issues during testing, run:
+
+```bash
+pixi run fix-lib-paths
+```
 
 Thanks to our contributors so far!
 

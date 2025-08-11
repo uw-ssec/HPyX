@@ -14,6 +14,9 @@ version = "0.1.0"
 [target.unix.dependencies]
 gperftools = ">=2.10,<3"
 
+[target.unix.tasks]
+fix-lib-paths = { cmd = "scripts/fix_lib_paths.sh", description = "Fix library paths for Unix systems" }
+
 [target.win.dependencies]
 mimalloc = ">=3.0.1,<4"
 
