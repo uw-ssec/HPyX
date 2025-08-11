@@ -22,22 +22,25 @@ mimalloc = ">=3.0.1,<4"
 
 [tasks]
 get-python-version = "python --version"
-install-all = {depends-on = ["pip-install-all"]}
-install = {depends-on = ["pip-install"]}
+install-all = { depends-on = ["pip-install-all"] }
+install = { depends-on = ["pip-install"] }
 uninstall = "pip uninstall -y hpyx"
 pip-install = 'pip install --force-reinstall --verbose -e "."'
 pip-install-all = 'pip install --force-reinstall --verbose -e ".[all]"'
-
-[tasks.lint]
-cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
-depends-on = ["pre-commit-clean"]
+lint = { depends-on = [{ "task" = "linter", environment = "linting" }] }
 
 [tasks.benchmark]
 args = [{ "arg" = "keyword_expression", "default" = "" }]
-cmd = ["pytest", "./benchmarks", "-k", "'{{keyword_expression}}'", "--benchmark-group-by=func", "--benchmark-warmup=on", "--benchmark-min-rounds=3", "--benchmark-time-unit=ms"]
-
-[tasks.pre-commit-clean]
-cmd = ["pre-commit", "clean"]
+cmd = [
+    "pytest",
+    "./benchmarks",
+    "-k",
+    "'{{keyword_expression}}'",
+    "--benchmark-group-by=func",
+    "--benchmark-warmup=on",
+    "--benchmark-min-rounds=3",
+    "--benchmark-time-unit=ms",
+]
 
 [tasks.test]
 cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
@@ -106,23 +109,17 @@ cwd = "vendor/hpx"
 depends-on = ["fetch-hpx-source"]
 
 [feature.hpx-src.tasks]
-install-all = { depends-on = [
-    "build-hpx-stable",
-    "pip-install-all",
-] }
-install = { depends-on = [
-    "build-hpx-stable",
-    "pip-install",
-] }
+install-all = { depends-on = ["build-hpx-stable", "pip-install-all"] }
+install = { depends-on = ["build-hpx-stable", "pip-install"] }
 install-all-latest = { depends-on = [
     "build-hpx-latest",
     "pip-install-all",
-    "restore-submodule"
+    "restore-submodule",
 ] }
 install-latest = { depends-on = [
     "build-hpx-latest",
     "pip-install",
-    "restore-submodule"
+    "restore-submodule",
 ] }
 
 # Conda stable hpx dependencies
@@ -168,13 +165,21 @@ markdown-exec = ">=1.11.0, <2"
 griffe = "*"
 
 [feature.mkdocs.tasks]
-start = { cmd = "mkdocs serve", depends-on = ["install"]}
+start = { cmd = "mkdocs serve", depends-on = ["install"] }
 
 [feature.mkdocs.tasks.rtd-publish]
 depends-on = ["install"]
 cmd = "mkdocs build --site-dir $READTHEDOCS_OUTPUT/html"
 env = { READTHEDOCS_OUTPUT = "." }
 
+# Linting Related Configuration
 [feature.lint.dependencies]
 pre-commit = ">=4.2.0,<5"
 identify = ">=2.6.12,<3"
+
+[feature.lint.tasks.linter]
+cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
+depends-on = ["pre-commit-clean"]
+
+[feature.lint.tasks.pre-commit-clean]
+cmd = ["pre-commit", "clean"]
