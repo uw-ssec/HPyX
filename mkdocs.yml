@@ -35,7 +35,7 @@ plugins:
             show_symbol_type_toc: true
             signature_crossrefs: true
             summary: true
-            docstring_style: sphinx
+            docstring_style: numpy
   - awesome-nav
   - mkdocs-jupyter
   - mike:
