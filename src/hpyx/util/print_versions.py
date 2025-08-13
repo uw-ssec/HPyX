@@ -6,7 +6,10 @@ for HPyX and its dependencies, as well as system and environment details.
 This is useful for debugging, issue reporting, and system diagnostics.
 
 The module can be executed directly from the command line:
-    python -m hpyx.util.print_versions
+
+```bash
+python -m hpyx.util.print_versions
+```
 
 Originally adapted from xarray's print_versions utility.
 See: https://github.com/pydata/xarray/blob/main/xarray/util/print_versions.py
