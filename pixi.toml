@@ -169,7 +169,7 @@ start = { cmd = "mkdocs serve", depends-on = ["install"] }
 
 [feature.mkdocs.tasks.rtd-publish]
 depends-on = ["install"]
-cmd = "jupyter --paths && mkdocs build --site-dir $READTHEDOCS_OUTPUT/html"
+cmd = "./scripts/rtd-publish.sh"
 env = { READTHEDOCS_OUTPUT = ".", JUPYTER_PLATFORM_DIRS = "1" }
 
 # Linting Related Configuration
