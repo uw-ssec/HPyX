@@ -8,5 +8,4 @@ build:
     - asdf plugin add pixi
     - asdf install pixi latest
     - asdf global pixi latest
-    - pixi install -e docs
     - NO_COLOR=1 pixi run -e docs rtd-publish
