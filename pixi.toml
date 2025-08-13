@@ -139,6 +139,7 @@ pip = ">=25.0.1,<26"
 # Python Versions Dependencies
 [feature.py313t.dependencies]
 python-freethreading = ">=3.13,<4"
+hpx = ">=1.11.0,<2"
 
 [feature.py313.dependencies]
 python = ">=3.13,<4"
@@ -149,7 +150,6 @@ build = ">=1.2.2.post1, <2"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
-uv = ">=0.6.17,<0.7"
 
 
 [feature.test.dependencies]
