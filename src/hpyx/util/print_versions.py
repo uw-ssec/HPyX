@@ -1,9 +1,17 @@
 """
-Utility module for printing version information.
+Utility module for printing version and system information.
 
-CLI usage: `python -m hpyx.util.print_versions`
+This module provides functions to display comprehensive version information
+for HPyX and its dependencies, as well as system and environment details.
+This is useful for debugging, issue reporting, and system diagnostics.
 
-Originally from xarray, adapted for hpyx.
+The module can be executed directly from the command line:
+
+```bash
+python -m hpyx.util.print_versions
+```
+
+Originally adapted from xarray's print_versions utility.
 See: https://github.com/pydata/xarray/blob/main/xarray/util/print_versions.py
 """
 from __future__ import annotations
@@ -16,16 +24,31 @@ import platform
 import struct
 import subprocess
 import sys
-import logging
+from pathlib import Path
 from typing import Literal
 
 from hpyx import _core
+
 
 def get_sys_info() -> list[tuple[str, str | Literal["unknown"]]]:
     """
     Get system information and HPyX version.
     
-    :return: List of tuples containing system information.
+    Collects comprehensive system information including HPyX version,
+    Git commit hash (if available), Python version, operating system
+    details, and environment variables.
+    
+    Returns
+    -------
+    list of tuple
+        A list of tuples containing system information key-value pairs.
+        Each tuple contains (info_name, info_value) where info_value
+        may be "unknown" if the information cannot be determined.
+        
+    Notes
+    -----
+    Git commit information is only available when running from a
+    Git repository with the expected directory structure.
     """
 
     blob = []
@@ -34,13 +57,13 @@ def get_sys_info() -> list[tuple[str, str | Literal["unknown"]]]:
         import hpyx._version as v
         version = v.version
     except ImportError:
-        version = "0.0.0" # Fallback version
+        version = "0.0.0"  # Fallback version
         
     blob.append(("HPyX", f"{version}"))
 
     # get full commit hash
     commit = "unknown"
-    if os.path.isdir(".git") and os.path.isdir("src/hpyx"):
+    if Path(".git").is_dir() and Path("src/hpyx").is_dir():
         try:
             pipe = subprocess.Popen(
                 ("git", "log", '--format="%H"', "-n", "1"),
@@ -82,9 +105,23 @@ def get_sys_info() -> list[tuple[str, str | Literal["unknown"]]]:
 
 def show_versions(file=sys.stdout):
     """
-    Print the versions of hpyx and its dependencies
+    Print the versions of HPyX and its dependencies.
+    
+    Displays comprehensive version information for HPyX, its dependencies,
+    system information, and HPX C++ library details. This information is
+    useful for debugging, issue reporting, and system diagnostics.
 
-    :param file: Print to the given file-like object.
+    Parameters
+    ----------
+    file : file-like object, default sys.stdout
+        The file-like object to print to. Can be any object that supports 
+        write() method.
+            
+    Examples
+    --------
+    >>> show_versions()  # Print to console
+    >>> with open('versions.txt', 'w') as f:
+    ...     show_versions(file=f)  # Save to file
     """
     sys_info = get_sys_info()
 
