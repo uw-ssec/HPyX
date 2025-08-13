@@ -48,7 +48,7 @@ jobs:
           pixi-version: v0.49.0
           cache: true
 
-      - name: Build HPX
+      - name: Build wheels
         run: pixi run -e build313t build-wheel
       - uses: actions/upload-artifact@v4
         with:
@@ -68,7 +68,8 @@ jobs:
           pixi-version: v0.49.0
           cache: true
 
-      - name: Build wheels
+      - name: Build sdist
+        # This is a separate job to avoid the need for a matrix strategy.
         run: pixi run -e build313t build-sdist
 
       - uses: actions/upload-artifact@v4
