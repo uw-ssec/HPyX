@@ -1,6 +1,10 @@
 #!/bin/bash
 
+
 set -e
+
+# Set default for READTHEDOCS_OUTPUT if not set
+READTHEDOCS_OUTPUT="${READTHEDOCS_OUTPUT:-.}"
 
 mkdir -p $READTHEDOCS_OUTPUT/html/
 
