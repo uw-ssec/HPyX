@@ -47,11 +47,11 @@ cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
 depends-on = ["build-hpx-stable", "install"]
 
 [tasks.build-sdist]
-cmd = ["uv", "build", "--sdist", "-o", "dist"]
+cmd = ["python", "-m", "build", ".", "--sdist", "--outdir", "dist"]
 depends-on = ["build-hpx-stable"]
 
 [tasks.build-wheel]
-cmd = ["uv", "build", "--wheel", "-o", "wheelhouse"]
+cmd = ["python", "-m", "build", ".", "--wheel", "--outdir", "wheelhouse"]
 depends-on = ["build-hpx-stable"]
 
 [dependencies]
@@ -72,7 +72,7 @@ asio = ">=1.29.0,<2"
 py313t = ["test", "python", "py313t", "hpx-src"]
 py313 = ["test", "python", "py313", "hpx-src"]
 build313t = ["build", "python", "py313t", "hpx-src"]
-docs = ["mkdocs", "python", "py313", "hpx-conda"]
+docs = ["mkdocs", "python", "py313", "libhpx"]
 linting = ["lint", "py313"]
 
 # Latest HPX Dependencies
@@ -129,7 +129,7 @@ install-latest = { depends-on = [
 
 # Conda stable hpx dependencies
 # Commented out as they are not used in the current configuration.
-[feature.hpx-conda.dependencies]
+[feature.libhpx.dependencies]
 hpx = ">=1.11.0,<2"
 
 # Python Package Dependencies
