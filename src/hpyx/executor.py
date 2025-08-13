@@ -40,10 +40,11 @@ class HPXExecutor(Executor):
     ...     result = future.result()
     ...     print(result)  # Outputs: 100
     
-    Attributes
-    ----------
-    The executor maintains internal state for the HPX runtime configuration
-    but does not expose public attributes directly.
+    Notes
+    -----
+    This class is currently in active development and may undergo changes.
+    We recommend using the HPXRuntime context manager rather than this
+    executor directly for managing the HPX runtime lifecycle.
     """
 
     def __init__(
