@@ -19,20 +19,16 @@ env:
 
 jobs:
   checks:
-    name: Check ${{ matrix.pixi-env }} on ${{ matrix.runs-on }}
+    name: Test on ${{ matrix.runs-on }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        pixi-env: ["py313t", "py313"]
         runs-on: [ubuntu-latest, macos-14]
         # Note: Windows support is experimental and requires additional setup.
         # Uncomment the following lines to enable Windows testing.
         # include:
-        #   - pixi-env: "py313t"
-        #     runs-on: windows-latest
-        #   - pixi-env: "py313"
-        #     runs-on: windows-latest
+        #   - runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v5
@@ -44,4 +40,4 @@ jobs:
           pixi-version: v0.49.0
           cache: true
       - name: Test package
-        run: pixi run -e ${{ matrix.pixi-env }} test
+        run: pixi run test
