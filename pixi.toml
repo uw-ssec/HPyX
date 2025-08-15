@@ -10,50 +10,49 @@ name = "hpyx"
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 version = "0.1.0"
 
-# Target specific dependencies
-[target.unix.dependencies]
-gperftools = ">=2.10,<3"
+# === Project Environments ===
+# Define various development environments with different feature combinations
+[environments]
+py313t = { features = ["py313t", "libhpx", "hpyx"], solve-group = "py313t" }
+test-py313t = { features = [
+    "py313t",
+    "libhpx",
+    "hpyx",
+    "test",
+], solve-group = "py313t" }
+build-py313t = ["py313t", "libhpx", "build"]
+benchmark-py313t = { features = [
+    "py313t",
+    "libhpx",
+    "hpyx",
+    "benchmark",
+], solve-group = "py313t" }
+docs = { features = ["py313", "libhpx", "hpyx", "mkdocs"] }
+linting = ["py313", "lint"]
+py313t-src = {features = ["py313t", "hpx-src", "test", "benchmark"], solve-group = "py313t-src"}
 
-[target.unix.tasks]
-fix-lib-paths = { cmd = "scripts/fix_lib_paths.sh", description = "Fix library paths for Unix systems" }
-
-[target.win.dependencies]
-mimalloc = ">=3.0.1,<4"
-
+# === High-Level Project Tasks ===
+# Main tasks that users will typically run for development workflow
 [tasks]
-get-python-version = "python --version"
-install-all = { depends-on = ["pip-install-all"] }
-install = { depends-on = ["pip-install"] }
-uninstall = "pip uninstall -y hpyx"
-pip-install = 'pip install --force-reinstall --verbose -e "."'
-pip-install-all = 'pip install --force-reinstall --verbose -e ".[all]"'
-lint = { depends-on = [{ "task" = "linter", environment = "linting" }] }
+get-python-version = { cmd = "python --version", description = "Display the current Python version" }
+# install-all = { depends-on = ["pip-install-all"] }
+# install = { depends-on = ["pip-install"] }
+# uninstall = "pip uninstall -y hpyx"
+# pip-install = 'pip install --force-reinstall --verbose -e "."'
+# pip-install-all = 'pip install --force-reinstall --verbose -e ".[all]"'
+lint = { depends-on = [{ "task" = "linter", environment = "linting" }], description = "Run code linting and formatting checks" }
+benchmark = { depends-on = [
+    { "task" = "run-benchmark", environment = "benchmark-py313t" },
+], description = "Execute performance benchmarks" }
+test = { depends-on = [{ "task" = "run-test", environment = "test-py313t" }], description = "Run the test suite" }
+build = { depends-on = [
+    { "task" = "build-sdist", environment = "build-py313t" },
+    { "task" = "build-wheel", environment = "build-py313t" },
+], description = "Build source distribution and wheel packages" }
+# === End High-Level Project Tasks ===
 
-[tasks.benchmark]
-args = [{ "arg" = "keyword_expression", "default" = "" }]
-cmd = [
-    "pytest",
-    "./benchmarks",
-    "-k",
-    "'{{keyword_expression}}'",
-    "--benchmark-group-by=func",
-    "--benchmark-warmup=on",
-    "--benchmark-min-rounds=3",
-    "--benchmark-time-unit=ms",
-]
-
-[tasks.test]
-cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
-depends-on = ["build-hpx-stable", "install"]
-
-[tasks.build-sdist]
-cmd = ["python", "-m", "build", ".", "--sdist", "--outdir", "dist"]
-depends-on = ["build-hpx-stable"]
-
-[tasks.build-wheel]
-cmd = ["python", "-m", "build", ".", "--wheel", "--outdir", "wheelhouse"]
-depends-on = ["build-hpx-stable"]
-
+# === Core Project Dependencies ===
+# Essential build tools and libraries required for all environments
 [dependencies]
 cmake = ">=3.15,<3.29"
 cxx-compiler = ">=1.8.0,<2"
@@ -61,38 +60,32 @@ make = ">=4.4.1,<5"
 clang = ">=17.0.6,<18"
 nanobind = ">=2.7.0,<3"
 libboost-headers = ">=1.86.0,<2"
-threadpoolctl = ">=3.6.0,<4"
-pytest-benchmark = ">=5.1.0,<6"
+pip = ">=25.0.1,<26"
+# === End Core Project Dependencies ===
 
-[host-dependencies]
-asio = ">=1.29.0,<2"
-
-[environments]
-py313t = ["test", "python", "py313t", "hpx-src"]
-py313 = ["test", "python", "py313", "hpx-src"]
-build313t = ["build", "python", "py313t", "hpx-src"]
-docs = ["mkdocs", "python", "py313", "libhpx"]
-linting = ["lint", "py313"]
-
-# Latest HPX Dependencies
-# The following configuration is for the latest HPX version,
-# which is not yet available in conda-forge.
+# === HPX Source Build Configuration ===
+# Configuration for building HPX from source when the latest version
+# is not yet available in conda-forge
 [feature.hpx-src.host-dependencies]
 ninja = ">=1.13.0,<2"
 libhwloc = ">=2.11.2,<3"
 libboost-devel = ">=1.86.0,<2"
+asio = ">=1.29.0,<2"
 
-[feature.hpx-src.tasks.fetch-hpx-source]
-cmd = "git submodule update --init"
+[feature.hpx-src.tasks]
+_pip-install-all = { cmd = 'pip install --force-reinstall --verbose -e ".[all]"', description = "Install HPyX package with all optional dependencies" }
+install-latest-lib = { depends-on = [
+    { "task" = "build-hpx", "args" = ["v1.11.0-rc1"] },
+    "_pip-install-all",
+    "_restore-submodule",
+], description = "Build and install HPX latest release candidate version" }
+install-stable-lib = { depends-on = [
+    { "task" = "build-hpx", "args" = ["v1.11.0"] },
+    "_pip-install-all",
+    "_restore-submodule",
+], description = "Build and install HPX stable version" }
 
-# Set the default HPX version to the latest release candidate
-[feature.hpx-src.tasks.build-hpx-latest]
-depends-on = [{ "task" = "build-hpx", "args" = ["v1.11.0-rc1"] }]
-[feature.hpx-src.tasks.build-hpx-stable]
-depends-on = [{ "task" = "build-hpx", "args" = ["v1.11.0"] }]
-
-[feature.hpx-src.tasks.restore-submodule]
-cmd = "git restore vendor/hpx"
+# Build HPX from source with specified version
 
 [feature.hpx-src.tasks.build-hpx]
 args = [
@@ -110,49 +103,102 @@ cmd = [
     "{{ tag }}",
 ]
 cwd = "vendor/hpx"
-depends-on = ["fetch-hpx-source"]
+depends-on = ["_fetch-hpx-source"]
+description = "Build HPX library from source with configurable options"
 
-[feature.hpx-src.tasks]
-install-all = { depends-on = ["build-hpx-stable", "pip-install-all"] }
-install = { depends-on = ["build-hpx-stable", "pip-install"] }
-install-all-latest = { depends-on = [
-    "build-hpx-latest",
-    "pip-install-all",
-    "restore-submodule",
-] }
-install-latest = { depends-on = [
-    "build-hpx-latest",
-    "pip-install",
-    "restore-submodule",
-] }
+[feature.hpx-src.tasks._fetch-hpx-source]
+cmd = "git submodule update --init"
+description = "Initialize and update the HPX git submodule"
 
-# Conda stable hpx dependencies
-# Commented out as they are not used in the current configuration.
+[feature.hpx-src.tasks._restore-submodule]
+cmd = "git restore vendor/hpx"
+description = "Restore the HPX submodule to its original state"
+# === End HPX Source Build Configuration ===
+
+# === HPX Library Feature Configuration ===
+# Configuration for using pre-built HPX library from conda-forge
+[feature.libhpx]
+platforms = ["linux-64", "osx-arm64", "win-64"]
+
+# Target specific dependencies
+[feature.libhpx.target.unix]
+dependencies = { gperftools = ">=2.10,<3" }
+tasks = { fix-lib-paths = { cmd = "scripts/fix_lib_paths.sh", description = "Fix library paths for Unix systems" } }
+[feature.libhpx.target.win]
+dependencies = { mimalloc = ">=3.0.1,<4" }
+
 [feature.libhpx.dependencies]
 hpx = ">=1.11.0,<2"
 
-# Python Package Dependencies
-[feature.python.dependencies]
-pip = ">=25.0.1,<26"
+# === End HPX Library Feature Configuration ===
 
-# Python Versions Dependencies
+# === Python Package Configuration ===
+# HPyX package installation configuration
+[feature.hpyx.pypi-dependencies]
+hpyx = { path = ".", editable = true }
+
+# === End Python Package Configuration ===
+
+# === Python Version Configuration ===
+# Different Python versions supported by the project
 [feature.py313t.dependencies]
-python-freethreading = ">=3.13,<4"
+python-freethreading = "3.13.*"
 
 [feature.py313.dependencies]
-python = ">=3.13,<4"
+python = "3.13.*"
 
-# Build Dependencies
+# === End Python Version Configuration ===
+
+# === Build Configuration ===
+# Dependencies and tasks for building distribution packages
 [feature.build.pypi-dependencies]
 build = ">=1.2.2.post1, <2"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
 
+[feature.build.tasks.build-sdist]
+cmd = ["python", "-m", "build", ".", "--sdist", "--outdir", "dist"]
+description = "Build source distribution package"
 
+[feature.build.tasks.build-wheel]
+cmd = ["python", "-m", "build", ".", "--wheel", "--outdir", "wheelhouse"]
+description = "Build wheel distribution package"
+# === End Build Configuration ===
+
+# === Test Configuration ===
+# Dependencies and tasks for running the test suite
 [feature.test.dependencies]
 pytest = ">=8.3.5,<9"
 
+[feature.test.tasks.run-test]
+cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
+description = "Execute the test suite with verbose output"
+# === End Test Configuration ===
+
+# === Benchmark Configuration ===
+# Dependencies and tasks for performance benchmarking
+[feature.benchmark.dependencies]
+pytest-benchmark = ">=5.1.0,<6"
+threadpoolctl = ">=3.6.0,<4"
+
+[feature.benchmark.tasks.run-benchmark]
+args = [{ "arg" = "keyword_expression", "default" = "" }]
+cmd = [
+    "pytest",
+    "./benchmarks",
+    "-k",
+    "'{{keyword_expression}}'",
+    "--benchmark-group-by=func",
+    "--benchmark-warmup=on",
+    "--benchmark-min-rounds=3",
+    "--benchmark-time-unit=ms",
+]
+description = "Run performance benchmarks with configurable keyword filtering"
+# === End Benchmark Configuration ===
+
+# === Documentation Configuration ===
+# Dependencies and tasks for building and serving documentation
 [feature.mkdocs.dependencies]
 mkdocs-material = "*"
 mkdocstrings = "*"
@@ -169,14 +215,17 @@ markdown-exec = ">=1.11.0, <2"
 griffe = "*"
 
 [feature.mkdocs.tasks]
-start = { cmd = "mkdocs serve", depends-on = ["install"] }
+start = { cmd = "mkdocs serve", depends-on = ["install"], description = "Start local documentation server for development" }
 
 [feature.mkdocs.tasks.rtd-publish]
 depends-on = ["install"]
 cmd = "./scripts/rtd-publish.sh"
 env = { JUPYTER_PLATFORM_DIRS = "1" }
+description = "Publish documentation to Read the Docs"
+# === End Documentation Configuration ===
 
-# Linting Related Configuration
+# === Linting and Code Quality Configuration ===
+# Dependencies and tasks for code formatting and quality checks
 [feature.lint.dependencies]
 pre-commit = ">=4.2.0,<5"
 identify = ">=2.6.12,<3"
@@ -184,6 +233,9 @@ identify = ">=2.6.12,<3"
 [feature.lint.tasks.linter]
 cmd = ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
 depends-on = ["pre-commit-clean"]
+description = "Run pre-commit hooks on all files with diff output on failure"
 
 [feature.lint.tasks.pre-commit-clean]
 cmd = ["pre-commit", "clean"]
+description = "Clean pre-commit cache and temporary files"
+# === End Linting and Code Quality Configuration ===
