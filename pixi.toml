@@ -117,9 +117,6 @@ description = "Restore the HPX submodule to its original state"
 
 # === HPX Library Feature Configuration ===
 # Configuration for using pre-built HPX library from conda-forge
-[feature.libhpx]
-platforms = ["linux-64", "osx-arm64", "win-64"]
-
 # Target specific dependencies
 [feature.libhpx.target.unix]
 dependencies = { gperftools = ">=2.10,<3" }
