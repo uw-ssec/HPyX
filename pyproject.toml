@@ -64,6 +64,7 @@ sdist.exclude = [".pixi"]
 
 minimum-version = "build-system.requires"
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["src/hpyx/_version.py"]
 
 # Pytest options
 [tool.pytest.ini_options]
