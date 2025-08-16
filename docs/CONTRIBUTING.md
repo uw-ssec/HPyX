@@ -23,17 +23,21 @@ HPyX uses [pixi](https://pixi.sh/) for environment and dependency management, wh
 
 2. Set up the development environment using one of the predefined environments:
 
-   - `py313t` - Python 3.13 with free threading for testing
-   - `py313` - Standard Python 3.13 environment for testing
-   - `build313t` - Environment for building with Python 3.13 free threading
-   - `docs` - Environment for documentation development
-   - `linting` - Environment for code linting
+   - `py313t` - Python 3.13 with free threading for development and testing
+   - `test-py313t` - Testing environment with all test dependencies
+   - `build-py313t` - Build environment for creating distribution packages
+   - `benchmark-py313t` - Performance benchmarking with specialized tools
+   - `docs` - Documentation development with MkDocs and extensions
+   - `linting` - Code quality checks and pre-commit hooks
+   - `py313t-src` - Environment for building HPX from source (experimental)
 
 3. Activate your chosen environment:
 
    ```bash
-   pixi shell -e py313
+   pixi shell -e py313t
    ```
+
+**Note**: The `py313t` environment automatically installs HPyX in development mode with all optional dependencies when activated.
 
 ## Development Workflow
 
@@ -47,49 +51,24 @@ pixi run get-python-version
 
 ### Building and Installation
 
-#### Standard Installation
+**Note**: Most installation tasks are currently integrated into the pixi environments. The `py313t` environment automatically handles package installation in development mode.
 
-Install the package in development mode:
+#### Manual Installation (if needed)
 
-```bash
-pixi run install
-```
-
-Install with all optional dependencies:
+For manual installation in a specific environment:
 
 ```bash
-pixi run install-all
-```
-
-#### Advanced Installation Options
-
-For working with the latest HPX features:
-
-```bash
-pixi run install-latest        # Install with latest HPX build
-pixi run install-all-latest    # Install all dependencies with latest HPX
-```
-
-#### Building Source Dependencies
-
-HPyX builds HPX from source for optimal performance. The following tasks manage HPX builds:
-
-```bash
-pixi run fetch-hpx-source     # Initialize/update HPX submodule
-pixi run build-hpx-stable     # Build stable HPX version (v1.11.0)
-pixi run build-hpx-latest     # Build latest HPX version (v1.11.0-rc1)
+pixi shell -e py313t
+pip install -e ".[all]"  # Development mode with all dependencies
+pip install -e .         # Development mode, minimal dependencies
 ```
 
 #### Building Distribution Packages
 
-```bash
-pixi run build-wheel          # Build wheel distribution
-```
-
-#### Uninstalling
+Build source distribution and wheel packages:
 
 ```bash
-pixi run uninstall           # Remove HPyX package
+pixi run build              # Build both source distribution and wheel
 ```
 
 ### Testing
@@ -100,10 +79,9 @@ Run the test suite:
 pixi run test
 ```
 
-The test task automatically:
+The test task:
 
-- Builds the stable HPX version
-- Installs the package
+- Uses the `test-py313t` environment with all test dependencies
 - Runs pytest with verbose output and short tracebacks
 
 ### Benchmarking
@@ -111,16 +89,24 @@ The test task automatically:
 Run performance benchmarks:
 
 ```bash
-pixi run benchmark                    # Run all benchmarks
-pixi run benchmark --keyword_expression="specific_test"  # Run specific benchmarks
+pixi run benchmark                         # Run all benchmarks
 ```
 
-Benchmarks are configured to:
+You can also filter benchmarks using pytest's keyword expressions by passing arguments:
 
-- Group results by function
-- Enable warmup runs
-- Run minimum 3 rounds per test
-- Display timing in milliseconds
+```bash
+# Note: Benchmark filtering is handled internally by the benchmark task
+# Check the benchmark task configuration for filtering options
+```
+
+The benchmark task:
+
+- Uses the `benchmark-py313t` environment with specialized profiling tools
+- Groups results by function for better organization
+- Enables warmup runs for accurate measurements
+- Runs minimum 3 rounds per test for statistical reliability
+- Displays timing in milliseconds
+- Supports keyword filtering for running specific benchmarks
 
 ### Code Quality and Linting
 
@@ -132,14 +118,9 @@ HPyX uses pre-commit hooks to maintain code quality. Run linting on all files:
 pixi run lint
 ```
 
-Clean pre-commit cache:
+The linting task:
 
-```bash
-pixi run pre-commit-clean
-```
-
-The linting process:
-
+- Uses the `linting` environment with pre-commit and formatting tools
 - Runs pre-commit hooks on all files
 - Shows diffs when failures occur
 - Includes formatters, linters, and other code quality tools
@@ -150,23 +131,21 @@ The linting process:
 
 HPyX uses MkDocs for documentation. To work on documentation:
 
-1. Switch to the docs environment:
+1. Start the documentation server (requires the docs environment):
 
    ```bash
-   pixi shell -e docs
+   pixi run -e docs start
    ```
 
-2. Start the documentation server:
+   Open the url provided in the terminal.
+
+2. For testing out the Read the Docs publishing (maintainers only):
 
    ```bash
-   pixi run start  # Available in docs environment
+   pixi run -e docs rtd-publish
    ```
 
-3. Build documentation for Read the Docs:
-
-   ```bash
-   pixi run rtd-publish  # Available in docs environment
-   ```
+   This will create an `html` directory with the built documentation.
 
 ## Project Structure
 
@@ -224,28 +203,47 @@ HPyX consists of several key components:
 5. Update documentation as needed
 6. Submit a pull request with a clear description
 
-## Advanced Development
+### Development Utilities
 
-### Custom HPX Builds
-
-The build system supports custom HPX configurations:
+#### Check Python Version
 
 ```bash
-# Build with specific HPX version
-pixi run build-hpx --tag=v1.10.0
-
-# Build with custom malloc implementation
-pixi run build-hpx --malloc=tcmalloc
-
-# Build in custom directory
-pixi run build-hpx --build_dir=custom_build
+pixi run get-python-version
 ```
+
+#### Available Development Tasks
+
+```bash
+pixi run test          # Run the complete test suite
+pixi run benchmark     # Execute performance benchmarks
+pixi run lint          # Run code quality checks and formatting
+pixi run build         # Build distribution packages
+```
+
+## Advanced Development
+
+### Working with HPX Source Builds
+
+For advanced development that requires building HPX from source, use the experimental `py313t-src` environment:
+
+```bash
+pixi shell -e py313t-src
+```
+
+This environment provides tools for:
+
+- Building HPX from source with different configurations
+- Testing against development versions of HPX
+- Custom HPX build options and parameters
+
+**Note**: Source builds are experimental and primarily for advanced development use cases.
 
 ### Debugging
 
-- Use `pixi run build-hpx-stable` to ensure consistent HPX builds
-- Check `vendor/hpx/build/` for HPX build artifacts
-- Run `pixi run restore-submodule` to reset HPX submodule state
+- Use the appropriate pixi environment for your development task
+- Check build logs and outputs within each environment
+- The `py313t` environment provides the most stable development setup
+- For HPX-specific issues, the `py313t-src` environment allows source-level debugging
 
 ## Getting Help
 

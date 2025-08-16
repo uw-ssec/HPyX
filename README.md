@@ -2,13 +2,11 @@
 
 <span><img src="https://img.shields.io/badge/SSEC-Project-purple?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAOCAQAAABedl5ZAAAACXBIWXMAAAHKAAABygHMtnUxAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAMNJREFUGBltwcEqwwEcAOAfc1F2sNsOTqSlNUopSv5jW1YzHHYY/6YtLa1Jy4mbl3Bz8QIeyKM4fMaUxr4vZnEpjWnmLMSYCysxTcddhF25+EvJia5hhCudULAePyRalvUteXIfBgYxJufRuaKuprKsbDjVUrUj40FNQ11PTzEmrCmrevPhRcVQai8m1PRVvOPZgX2JttWYsGhD3atbHWcyUqX4oqDtJkJiJHUYv+R1JbaNHJmP/+Q1HLu2GbNoSm3Ft0+Y1YMdPSTSwQAAAABJRU5ErkJggg==&style=plastic" /><span>
 ![BSD License](https://badgen.net/badge/license/BSD-3-Clause/blue)
-[![Hatch project](https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg)](https://github.com/pypa/hatch)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-[![Documentation Status](https://readthedocs.org/projects/ssec-python-project-template/badge/?version=latest)](https://ssec-python-project-template.readthedocs.io/en/latest/?badge=latest)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/uw-ssec/python-project-template/main.svg)](https://results.pre-commit.ci/latest/github/uw-ssec/python-project-template/main)
-[![CI](https://github.com/uw-ssec/python-project-template/actions/workflows/ci.yml/badge.svg)](https://github.com/uw-ssec/python-project-template/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/uw-ssec/python-project-template/graph/badge.svg?token=13LYMLQBZL)](https://codecov.io/gh/uw-ssec/python-project-template)
+[![Documentation Status](https://readthedocs.org/projects/hpyx/badge/?version=latest)](https://hpyx.readthedocs.io/en/latest/)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/uw-ssec/HPyX/main.svg)](https://results.pre-commit.ci/latest/github/uw-ssec/HPyX/main)
+[![CI](https://github.com/uw-ssec/HPyX/actions/workflows/ci.yml/badge.svg)](https://github.com/uw-ssec/HPyX/actions/workflows/ci.yml)
 
 ## Project Overview
 
@@ -75,52 +73,64 @@ git clone https://github.com/uw-ssec/HPyX.git
 cd HPyX
 ```
 
-HPyX provides several predefined environments:
+HPyX provides several predefined environments optimized for different development tasks:
 
-- `py313t` - Python 3.13 with free threading for testing
-- `py313` - Standard Python 3.13 environment for testing
-- `build313t` - Environment for building with Python 3.13 free threading
+- `py313t` - Python 3.13 with free threading for development and testing
+- `test-py313t` - Testing environment with all test dependencies
+- `build-py313t` - Build environment for creating distribution packages  
+- `benchmark-py313t` - Performance benchmarking with specialized tools
+- `docs` - Documentation development with MkDocs and extensions
+- `linting` - Code quality checks and pre-commit hooks
+- `py313t-src` - Environment for building HPX from source (experimental)
 
 To create and activate an environment:
 
 ```bash
-pixi shell -e py313
+pixi shell -e py313t
 ```
 
-### Installing the package
+**Note: By default, HPyX is installed in development mode with all optional dependencies
+when the `py313t` pixi environment is activated.**
 
-To install the package in development mode with all optional dependencies:
+### Available Tasks
 
-```bash
-pixi run install-all
-```
-
-For a standard installation:
+HPyX provides several high-level tasks for common development operations:
 
 ```bash
-pixi run install
-```
+# Development and testing
+pixi run test                    # Run the test suite
+pixi run benchmark              # Execute performance benchmarks  
+pixi run lint                   # Run code linting and formatting checks
 
-To uninstall the package:
+# Building and packaging
+pixi run build                  # Build source distribution and wheel packages
 
-```bash
-pixi run uninstall
+# Utilities
+pixi run get-python-version     # Display the current Python version
 ```
 
 ### Building the package
 
-To build a wheel:
+To build distribution packages:
 
 ```bash
-pixi run build-wheel
+pixi run build    # Builds both source distribution and wheel
 ```
 
 ### Running tests
 
-To run tests:
+To run the test suite:
 
 ```bash
 pixi run test
+```
+
+### Performance benchmarking
+
+To run performance benchmarks:
+
+```bash
+pixi run benchmark
 ```
 
 #### Troubleshooting Test Issues
@@ -139,20 +149,29 @@ pixi run fix-lib-paths
 
 This script will automatically detect and remove duplicate RPATH entries from dynamic libraries in your conda environment, which can occur due to dependency conflicts between conda packages.
 
-### Code quality
+### Code quality and linting
 
-To run linting on all files:
+To run code quality checks and formatting:
 
 ```bash
 pixi run lint
 ```
 
-### Additional tasks
+### Additional utilities
 
-Check the Python version in your environment:
+Check the Python version in your current environment:
 
 ```bash
 pixi run get-python-version
+```
+
+### Documentation development
+
+For documentation development, use the dedicated docs environment:
+
+```bash
+pixi shell -e docs
+pixi run start    # Start local documentation server
 ```
 
 ## Development
@@ -165,11 +184,13 @@ platforms and simplifies the complex build process for HPX and its dependencies.
 
 HPyX provides several predefined environments optimized for different use cases:
 
-- `py313t` - Python 3.13 with free threading for testing and development
-- `py313` - Standard Python 3.13 environment for compatibility testing
-- `build313t` - Environment for building with Python 3.13 free threading
-- `docs` - Environment for documentation development with MkDocs
-- `linting` - Environment for code quality checks and pre-commit hooks
+- `py313t` - Python 3.13 with free threading for development and testing
+- `test-py313t` - Comprehensive testing environment with all test dependencies
+- `build-py313t` - Build environment for creating distribution packages
+- `benchmark-py313t` - Performance benchmarking with specialized profiling tools
+- `docs` - Documentation development with MkDocs and all extensions
+- `linting` - Code quality checks, formatting, and pre-commit hooks
+- `py313t-src` - Environment for building HPX from source (experimental)
 
 ### Build Process
 
@@ -209,13 +230,13 @@ For a quick start:
    ```bash
    git clone https://github.com/uw-ssec/HPyX.git
    cd HPyX
-   pixi shell -e py313
+   pixi shell -e py313t
    ```
 
 3. Install the package in development mode:
 
    ```bash
-   pixi run install-all
+   pip install -e ".[all]"
    ```
 
 4. Run tests to verify your setup:
@@ -223,6 +244,14 @@ For a quick start:
    ```bash
    pixi run test
    ```
+
+You can also explore other development tasks:
+
+```bash
+pixi run benchmark    # Run performance benchmarks
+pixi run lint        # Check code quality and formatting  
+pixi run build       # Build distribution packages
+```
 
 Thanks to our contributors so far!
 
