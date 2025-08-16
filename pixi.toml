@@ -224,7 +224,6 @@ griffe = "*"
 start = { cmd = "mkdocs serve", depends-on = ["install"], description = "Start local documentation server for development" }
 
 [feature.mkdocs.tasks.rtd-publish]
-depends-on = ["install"]
 cmd = "./scripts/rtd-publish.sh"
 env = { JUPYTER_PLATFORM_DIRS = "1" }
 description = "Publish documentation to Read the Docs"
