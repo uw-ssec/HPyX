@@ -127,6 +127,12 @@ tasks = { fix-lib-paths = { cmd = "scripts/fix_lib_paths.sh", description = "Fix
 [feature.libhpx.target.win]
 dependencies = { mimalloc = ">=3.0.1,<4" }
 
+# Linux-64 specific
+[feature.libhpx.target.linux-64.activation.env]
+# For loading the right tcmalloc library
+# See https://github.com/STEllAR-GROUP/phylanx/wiki/Phylanx-Issues-and-Answers
+LD_PRELOAD = "$CONDA_PREFIX/lib/libtcmalloc_minimal.so:$LD_PRELOAD"
+
 [feature.libhpx.dependencies]
 hpx = ">=1.11.0,<2"
 
