@@ -167,6 +167,21 @@ description = "Build source distribution package"
 [feature.build.tasks.build-wheel]
 cmd = ["python", "-m", "build", ".", "--wheel", "--outdir", "wheelhouse"]
 description = "Build wheel distribution package"
+
+[feature.build.tasks.build-wheel-and-test]
+depends-on = [
+    { "task" = "build-wheel" },
+    { "task" = "_install-wheel" },
+    { "task" = "_print-versions" },
+]
+
+[feature.build.tasks._install-wheel]
+cmd = "pip install --force-reinstall --verbose wheelhouse/*.whl"
+description = "Install the built wheel package"
+
+[feature.build.tasks._print-versions]
+cmd = "python -m hpyx.util.print_versions"
+description = "Print versions of all installed dependencies and the HPyX package"
 # === End Build Configuration ===
 
 # === Test Configuration ===

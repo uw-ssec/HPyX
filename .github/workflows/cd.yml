@@ -49,7 +49,7 @@ jobs:
           cache: true
 
       - name: Build wheels
-        run: pixi run -e build-py313t build-wheel
+        run: pixi run -e build-py313t build-wheel-and-test
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
