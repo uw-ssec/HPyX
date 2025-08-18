@@ -8,6 +8,7 @@
 #include <hpx/algorithm.hpp>
 #include <hpx/execution.hpp>
 #include <hpx/version.hpp>
+#include <vector>
 #include "init_hpx.hpp"
 #include "algorithms.hpp"
 #include "futures.hpp"
@@ -27,23 +28,43 @@ template <typename T>
 void bind_hpx_future(nb::module_ &m, const char *name) {
     nb::class_<hpx::future<T>>(m, name)
         .def("get", [](hpx::future<T> &f) {
-            // TODO: Experiment with an approach that keeps result object in Python
-            // Current version retrieves value in C++ and returns it to Python even though computation and result are in Python
-            // Alternatively, return a pointer to the result object instead of copying it so that the async is compatible with Python and C++ objects
-            auto result = f.get();
+            // Release GIL before blocking operation to allow other Python threads
             nb::gil_scoped_release release;
+            auto result = f.get();
+            // GIL is automatically reacquired when release goes out of scope
             return result; })
-        // TODO: Implement .then function that works with nanobind callable
-        // Currently, the chaining of futures is not working correctly
         .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args) {
-            std::cout << "Calling then with callback" << std::endl;
-            auto fut = f.then([callback, args](hpx::future<T> && future) -> nb::object {
-                std::cout << "Inside then callback" << std::endl;
+            // Enhanced version: callback with optional extra args
+            // Capture args by copying them to avoid lifetime issues
+            std::vector<nb::object> captured_args;
+            for (size_t i = 0; i < args.size(); ++i) {
+                captured_args.push_back(args[i]);
+            }
+            
+            auto fut = f.then([callback, captured_args](hpx::future<T>&& future) -> nb::object {
                 nb::gil_scoped_acquire acquire;
-                return callback(*args);
+                try {
+                    auto result = future.get();
+                    if (!captured_args.empty()) {
+                        // Use nanobind's operator() with multiple arguments
+                        switch (captured_args.size()) {
+                            case 1: return callback(result, captured_args[0]);
+                            case 2: return callback(result, captured_args[0], captured_args[1]);
+                            case 3: return callback(result, captured_args[0], captured_args[1], captured_args[2]);
+                            case 4: return callback(result, captured_args[0], captured_args[1], captured_args[2], captured_args[3]);
+                            default:
+                                throw std::runtime_error("Too many arguments (max 4 extra args supported)");
+                        }
+                    } else {
+                        return callback(result);
+                    }
+                } catch (const std::exception& e) {
+                    throw nb::python_error();
+                }
             });
+
             return fut; 
-        }, "callback"_a, nb::arg("*args"))
+        }, "callback"_a, nb::arg("*args"), "Attach a callback that will be called with the future's result and optional extra arguments")
         .def("is_ready", [](hpx::future<T> &f) -> bool {
             return f.is_ready();
         });
