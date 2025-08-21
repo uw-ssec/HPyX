@@ -3,6 +3,7 @@
 #include <nanobind/stl/string.h>
 #include <hpx/hpx_start.hpp>
 #include <hpx/numeric.hpp>
+#include <hpx/future.hpp>
 #include <hpx/iostream.hpp>
 #include <nanobind/ndarray.h>
 #include <hpx/algorithm.hpp>
@@ -21,20 +22,6 @@
 namespace nb = nanobind;
 using namespace nb::literals;
 
-// Lightweight wrapper that holds a shared_ptr to an hpx::future<T>
-// This keeps a stable C++ object to attach metadata (is_chained/origin)
-template <typename T>
-struct HPXFutureWrapper {
-    std::shared_ptr<hpx::future<T>> fut;
-    bool is_chained = false;
-    std::string origin = "direct";
-    nb::object custom_data = nb::none();
-
-    HPXFutureWrapper() = default;
-    HPXFutureWrapper(std::shared_ptr<hpx::future<T>> f, bool chained = false, const std::string &orig = "direct")
-        : fut(std::move(f)), is_chained(chained), origin(orig) {}
-};
-
 // Function to bind HPX future for nanobind
 // This function binds the hpx::future<T> type to nanobind, allowing it
 // to be used in Python code. It provides methods to get the result,
@@ -42,58 +29,34 @@ struct HPXFutureWrapper {
 // called when the future is ready.
 template <typename T>
 void bind_hpx_future(nb::module_ &m, const char *name) {
-    nb::class_<HPXFutureWrapper<T>>(m, name)
+    nb::class_<hpx::future<T>>(m, name)
         .def(nb::init<>())
-        .def("get", [](HPXFutureWrapper<T> &w) {
-            // If this future is from a chained continuation, release the GIL
-            // before blocking so other Python threads can run. For direct
-            // (non-chained) futures we keep the previous behavior and do not
-            // release the GIL before get().
-            if (w.is_chained) {
-                nb::gil_scoped_release release;
-                return w.fut->get();
-            } else {
-                auto result = w.fut->get();
-                nb::gil_scoped_release release;
-                return result;
-            }
+        .def("get", [](hpx::future<T> &f) {
+            // For deferred launch policy, the callable executes in the
+            // calling thread when get() is invoked and may call back into
+            // Python. Keep the GIL held here so Python callables can run
+            // safely.
+            return f.get();
         })
-        .def("then", [](HPXFutureWrapper<T> &w, nb::callable callback, nb::args args) {
-            // capture args
-            std::vector<nb::object> captured_args;
-            for (size_t i = 0; i < args.size(); ++i) captured_args.push_back(args[i]);
+        .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args) {
 
-            // attach continuation to underlying future
-            auto cont = w.fut->then([callback, captured_args](hpx::future<T> inner) -> nb::object {
-                nb::gil_scoped_acquire acquire;
-                try {
-                    auto res = inner.get();
-                    if (!captured_args.empty()) {
-                        switch (captured_args.size()) {
-                            case 1: return callback(res, captured_args[0]);
-                            case 2: return callback(res, captured_args[0], captured_args[1]);
-                            case 3: return callback(res, captured_args[0], captured_args[1], captured_args[2]);
-                            case 4: return callback(res, captured_args[0], captured_args[1], captured_args[2], captured_args[3]);
-                            default: throw std::runtime_error("Too many arguments (max 4 extra args supported)");
-                        }
-                    } else {
-                        return callback(res);
+            // Create a new deferred future that, when executed via get(),
+            // will run predecessor.get() and then invoke the Python
+            // callback while holding the GIL.
+            hpx::future<T> cont = hpx::async(hpx::launch::deferred,
+                [prev = std::move(f), callback, args]() mutable -> nb::object {
+                    nb::gil_scoped_acquire acquire;
+                    try {
+                        auto res = prev.get();
+                        return callback(res, *args);
+                    } catch (const std::exception &e) {
+                        throw nb::python_error();
                     }
-                } catch (const std::exception &e) {
-                    throw nb::python_error();
-                }
-            });
+                });
 
-            auto shared_cont = std::make_shared<std::decay_t<decltype(cont)>>(std::move(cont));
-            HPXFutureWrapper<T> out(shared_cont, true, "chained");
-            return out;
+            return cont;
         }, "callback"_a, nb::arg("*args"), "Attach a callback that will be called with the future's result and optional extra arguments")
-        .def("is_ready", [](HPXFutureWrapper<T> &w) -> bool { return w.fut->is_ready(); })
-        .def_prop_ro("is_chained", [](const HPXFutureWrapper<T> &w) { return w.is_chained; })
-        .def_prop_ro("origin", [](const HPXFutureWrapper<T> &w) { return w.origin; })
-        .def_prop_rw("custom_data",
-            [](const HPXFutureWrapper<T> &w) { return w.custom_data; },
-            [](HPXFutureWrapper<T> &w, nb::object val) { w.custom_data = val; });
+        .def("is_ready", [](hpx::future<T> &f) -> bool { return f.is_ready(); });
 }
 
 NB_MODULE(_core, m)
@@ -105,9 +68,7 @@ NB_MODULE(_core, m)
 
     // Binding futures/async functionalities
     m.def("hpx_async", [](nb::callable f, nb::args args) {
-        auto raw = futures::hpx_async(f, args); // hpx::future<nb::object>
-        auto shared = std::make_shared<hpx::future<nb::object>>(std::move(raw));
-        return HPXFutureWrapper<nb::object>(shared, false, "direct");
+        return futures::hpx_async(f, args); // return hpx::future<nb::object>
     }, "f"_a, nb::arg("*args"));
     m.def("hpx_async_add", &futures::hpx_async_add, "a"_a, "b"_a);
 
