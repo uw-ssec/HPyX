@@ -46,12 +46,8 @@ void bind_hpx_future(nb::module_ &m, const char *name) {
             hpx::future<T> cont = hpx::async(hpx::launch::deferred,
                 [prev = std::move(f), callback, args]() mutable -> nb::object {
                     nb::gil_scoped_acquire acquire;
-                    try {
-                        auto res = prev.get();
-                        return callback(res, *args);
-                    } catch (const std::exception &e) {
-                        throw nb::python_error();
-                    }
+                    auto res = prev.get();
+                    return callback(res, *args);
                 });
 
             return cont;

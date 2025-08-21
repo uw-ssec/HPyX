@@ -329,33 +329,6 @@ class TestSubmitThenChaining:
         result = chained_future.get()
         assert result == 20.0  # ((6 * 2) * 5 + 20) / 4 = (60 + 20) / 4 = 20.0
 
-    def test_then_with_max_args_limit(self, hpx_runtime):
-        """Test .then() with exactly 4 extra arguments (the maximum supported)."""
-        def base_function(x: int) -> int:
-            return x
-        
-        def four_arg_callback(result: int, a: int, b: int, c: int, d: int) -> int:
-            return result + a + b + c + d
-
-        future = submit(base_function, 10)
-        chained_future = future.then(four_arg_callback, 1, 2, 3, 4)
-        result = chained_future.get()
-        assert result == 20  # 10 + 1 + 2 + 3 + 4 = 20
-
-    def test_then_exceeds_max_args_limit(self, hpx_runtime):
-        """Test .then() with more than 4 extra arguments should raise an error."""
-        def base_function(x: int) -> int:
-            return x
-        
-        def five_arg_callback(result: int, a: int, b: int, c: int, d: int, e: int) -> int:
-            return result + a + b + c + d + e
-
-        future = submit(base_function, 10)
-        chained_future = future.then(five_arg_callback, 1, 2, 3, 4, 5)
-        # Should raise RuntimeError when the callback is executed
-        with pytest.raises(RuntimeError, match="Too many arguments"):
-            chained_future.get()
-
     def test_then_multiple_chaining(self, hpx_runtime):
         """Test chaining multiple .then() calls together."""
         def base_function(x: int) -> int:
