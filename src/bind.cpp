@@ -3,11 +3,15 @@
 #include <nanobind/stl/string.h>
 #include <hpx/hpx_start.hpp>
 #include <hpx/numeric.hpp>
+#include <hpx/future.hpp>
 #include <hpx/iostream.hpp>
 #include <nanobind/ndarray.h>
 #include <hpx/algorithm.hpp>
 #include <hpx/execution.hpp>
 #include <hpx/version.hpp>
+#include <vector>
+#include <memory>
+#include <string>
 #include "init_hpx.hpp"
 #include "algorithms.hpp"
 #include "futures.hpp"
@@ -26,27 +30,29 @@ using namespace nb::literals;
 template <typename T>
 void bind_hpx_future(nb::module_ &m, const char *name) {
     nb::class_<hpx::future<T>>(m, name)
+        .def(nb::init<>())
         .def("get", [](hpx::future<T> &f) {
-            // TODO: Experiment with an approach that keeps result object in Python
-            // Current version retrieves value in C++ and returns it to Python even though computation and result are in Python
-            // Alternatively, return a pointer to the result object instead of copying it so that the async is compatible with Python and C++ objects
-            auto result = f.get();
-            nb::gil_scoped_release release;
-            return result; })
-        // TODO: Implement .then function that works with nanobind callable
-        // Currently, the chaining of futures is not working correctly
+            // For deferred launch policy, the callable executes in the
+            // calling thread when get() is invoked and may call back into
+            // Python. Keep the GIL held here so Python callables can run
+            // safely.
+            return f.get();
+        })
         .def("then", [](hpx::future<T> &f, nb::callable callback, nb::args args) {
-            std::cout << "Calling then with callback" << std::endl;
-            auto fut = f.then([callback, args](hpx::future<T> && future) -> nb::object {
-                std::cout << "Inside then callback" << std::endl;
-                nb::gil_scoped_acquire acquire;
-                return callback(*args);
-            });
-            return fut; 
-        }, "callback"_a, nb::arg("*args"))
-        .def("is_ready", [](hpx::future<T> &f) -> bool {
-            return f.is_ready();
-        });
+
+            // Create a new deferred future that, when executed via get(),
+            // will run predecessor.get() and then invoke the Python
+            // callback while holding the GIL.
+            hpx::future<T> cont = hpx::async(hpx::launch::deferred,
+                [prev = std::move(f), callback, args]() mutable -> nb::object {
+                    nb::gil_scoped_acquire acquire;
+                    auto res = prev.get();
+                    return callback(res, *args);
+                });
+
+            return cont;
+        }, "callback"_a, nb::arg("*args"), "Attach a callback that will be called with the future's result and optional extra arguments")
+        .def("is_ready", [](hpx::future<T> &f) -> bool { return f.is_ready(); });
 }
 
 NB_MODULE(_core, m)
@@ -57,7 +63,9 @@ NB_MODULE(_core, m)
     bind_hpx_future<nb::object>(m, "future");
 
     // Binding futures/async functionalities
-    m.def("hpx_async", &futures::hpx_async, "f"_a, nb::arg("*args"));
+    m.def("hpx_async", [](nb::callable f, nb::args args) {
+        return futures::hpx_async(f, args); // return hpx::future<nb::object>
+    }, "f"_a, nb::arg("*args"));
     m.def("hpx_async_add", &futures::hpx_async_add, "a"_a, "b"_a);
 
     // Binding algorithms functionalities
