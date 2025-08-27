@@ -34,22 +34,22 @@ jobs:
           - os: macos-intel
             # macos-13 was the last x86_64 runner
             runs-on: macos-13
-          - os: macos-14-arm
-            runs-on: macos-14
-          - os: macos-15-arm
-            runs-on: macos-15
+          - os: macos-arm
+            # macos-14+ (including latest) are ARM64 runners
+            runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: true
-      - uses: prefix-dev/setup-pixi@v0.9.0
-        with:
-          pixi-version: v0.49.0
-          cache: true
 
       - name: Build wheels
-        run: pixi run -e build-py313t build-wheel-and-test
+        uses: pypa/cibuildwheel@v2.17
+        env:
+          CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
+      - name: Verify clean directory
+        run: git diff --exit-code
+        shell: bash
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
