@@ -45,7 +45,7 @@ jobs:
           submodules: true
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17
+        uses: pypa/cibuildwheel@v3.1.4
         env:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
       - name: Verify clean directory
