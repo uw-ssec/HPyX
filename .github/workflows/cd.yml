@@ -56,7 +56,7 @@ jobs:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ENVIRONMENT: >
             CMAKE_PREFIX_PATH="/project/.pixi/envs/build-py313t"
-            HPX_DIR="/project/.pixi/envs/build-py313t/lib/cmake/HPX"
+            CMAKE_MODULE_PATH="/project/.pixi/envs/build-py313t/lib/cmake"
             SKBUILD_CMAKE_ARGS="-DHwloc_LIBRARY=/project/.pixi/envs/build-py313t/lib"
         with:
           package-dir: .
