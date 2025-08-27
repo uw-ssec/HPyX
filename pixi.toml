@@ -59,7 +59,8 @@ cxx-compiler = ">=1.8.0,<2"
 make = ">=4.4.1,<5"
 clang = ">=17.0.6,<18"
 nanobind = ">=2.7.0,<3"
-libboost-headers = ">=1.86.0,<2"
+libhwloc = ">=2.11.2,<3"
+libboost-devel = ">=1.86.0,<2"
 pip = ">=25.0.1,<26"
 # === End Core Project Dependencies ===
 
@@ -156,6 +157,7 @@ python = "3.13.*"
 # Dependencies and tasks for building distribution packages
 [feature.build.pypi-dependencies]
 build = ">=1.2.2.post1, <2"
+cibuildwheel = ">=3.1.4"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
@@ -165,7 +167,7 @@ cmd = ["python", "-m", "build", ".", "--sdist", "--outdir", "dist"]
 description = "Build source distribution package"
 
 [feature.build.tasks.build-wheel]
-cmd = ["python", "-m", "build", ".", "--wheel", "--outdir", "wheelhouse"]
+cmd = ["python", "-m", "cibuildwheel", "--platform", "linux", "--output-dir", "wheelhouse"]
 description = "Build wheel distribution package"
 
 [feature.build.tasks.build-wheel-and-test]
