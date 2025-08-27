@@ -48,6 +48,10 @@ jobs:
         uses: pypa/cibuildwheel@v3.1.4
         env:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
+        with:
+          package-dir: .
+          output-dir: wheelhouse
+          config-file: "{package}/pyproject.toml"
       - name: Verify clean directory
         run: git diff --exit-code
         shell: bash
