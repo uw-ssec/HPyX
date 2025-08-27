@@ -34,9 +34,10 @@ jobs:
           - os: macos-intel
             # macos-13 was the last x86_64 runner
             runs-on: macos-13
-          - os: macos-arm
-            # macos-14+ (including latest) are ARM64 runners
-            runs-on: macos-latest
+          - os: macos-14-arm
+            runs-on: macos-14
+          - os: macos-15-arm
+            runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
         with:
