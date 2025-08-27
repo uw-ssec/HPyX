@@ -136,4 +136,3 @@ isort.required-imports = ["from __future__ import annotations"]
 
 [tool.cibuildwheel]
 enable = "cpython-freethreading"
-build-frontend = "build[uv]"
