@@ -4397,8 +4397,8 @@ packages:
   timestamp: 1754979013533
 - pypi: ./
   name: hpyx
-  version: 0.1.dev58
-  sha256: 2c862474d4467e236b64d29787353b910cde03501457f4620f4dcafe5bf9e163
+  version: 0.1.dev61
+  sha256: aef02e8f39b13b085c990a29ab77c1f00c931622d1b627d4b672fe09c885ca9a
   requires_dist:
   - numpy
   - pre-commit ; extra == 'dev'
