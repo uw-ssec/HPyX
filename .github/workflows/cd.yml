@@ -54,6 +54,8 @@ jobs:
         if: matrix.os == 'linux-intel'
         run: |
           for whl in wheelhouse/*.whl; do
+            pixi run -e build-py313t auditwheel show "$whl"
+            pixi run -e build-py313t auditwheel-symbols "$whl"
             pixi run -e build-py313t auditwheel repair "$whl" --plat manylinux_2_28_x86_64 -w wheelhouse/
           done
           # List the repaired wheels

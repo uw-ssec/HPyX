@@ -421,6 +421,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xz-tools-5.8.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb8e6e7a_2.conda
+      - pypi: https://files.pythonhosted.org/packages/0f/51/ef3c391a84e7fbd7bdba37a9689d0269083eb3f4685d9729bdcdcea8bc48/auditwheel_symbols-0.1.13-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/cb/8c/2b30c12155ad8de0cf641d76a8b396a16d2c36bc6d50b621a62b7c4567c1/build-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl
       osx-64:
@@ -505,6 +506,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/xz-tools-5.8.1-hd471939_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.7-h8210216_2.conda
+      - pypi: https://files.pythonhosted.org/packages/10/78/0a94584ab08eddf9f887ef2b150937633a6236cd5b036f4d5e39a0fe875b/auditwheel_symbols-0.1.13-py3-none-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/cb/8c/2b30c12155ad8de0cf641d76a8b396a16d2c36bc6d50b621a62b7c4567c1/build-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl
       osx-arm64:
@@ -589,6 +591,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-tools-5.8.1-h39f12f2_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-h6491c7d_2.conda
+      - pypi: https://files.pythonhosted.org/packages/10/78/0a94584ab08eddf9f887ef2b150937633a6236cd5b036f4d5e39a0fe875b/auditwheel_symbols-0.1.13-py3-none-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/cb/8c/2b30c12155ad8de0cf641d76a8b396a16d2c36bc6d50b621a62b7c4567c1/build-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl
       win-64:
@@ -652,6 +655,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/xz-tools-5.8.1-h2466b09_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-hbeecb71_2.conda
+      - pypi: https://files.pythonhosted.org/packages/c9/2e/4bf53c7fb1b84f01148856bfc71dbc434cfa18cf83b7331243b0e11814d3/auditwheel_symbols-0.1.13-py3-none-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/cb/8c/2b30c12155ad8de0cf641d76a8b396a16d2c36bc6d50b621a62b7c4567c1/build-1.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl
@@ -2974,6 +2978,18 @@ packages:
   - pkg:pypi/auditwheel?source=hash-mapping
   size: 46124
   timestamp: 1753879913835
+- pypi: https://files.pythonhosted.org/packages/0f/51/ef3c391a84e7fbd7bdba37a9689d0269083eb3f4685d9729bdcdcea8bc48/auditwheel_symbols-0.1.13-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.whl
+  name: auditwheel-symbols
+  version: 0.1.13
+  sha256: 2a97e4bdeb2681f8d4d327d1356bfb8a7ba9344d5a0e4136afdd278c408bb04e
+- pypi: https://files.pythonhosted.org/packages/10/78/0a94584ab08eddf9f887ef2b150937633a6236cd5b036f4d5e39a0fe875b/auditwheel_symbols-0.1.13-py3-none-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
+  name: auditwheel-symbols
+  version: 0.1.13
+  sha256: 6cc06ef838190d51b5ac367db2404b085c533fac50d375619f7510af5af8373f
+- pypi: https://files.pythonhosted.org/packages/c9/2e/4bf53c7fb1b84f01148856bfc71dbc434cfa18cf83b7331243b0e11814d3/auditwheel_symbols-0.1.13-py3-none-win_amd64.whl
+  name: auditwheel-symbols
+  version: 0.1.13
+  sha256: 1f3298d2cab4adc568d3b244fd01c696fd6ce99826ff17801e9870c961fdcfb4
 - conda: https://conda.anaconda.org/conda-forge/noarch/babel-2.17.0-pyhd8ed1ab_0.conda
   sha256: 1c656a35800b7f57f7371605bc6507c8d3ad60fbaaec65876fce7f73df1fc8ac
   md5: 0a01c169f0ab0f91b26e77a3301fbfe4
