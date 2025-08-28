@@ -74,15 +74,17 @@ git clone https://github.com/uw-ssec/HPyX.git
 cd HPyX
 ```
 
-HPyX provides several predefined environments optimized for different development tasks:
+HPyX provides predefined pixi environments (see also `docs/CONTRIBUTING.md`):
 
-- `py313t` - Python 3.13 with free threading for development and testing
-- `test-py313t` - Testing environment with all test dependencies
-- `build-py313t` - Build environment for creating distribution packages  
-- `benchmark-py313t` - Performance benchmarking with specialized tools
-- `docs` - Documentation development with MkDocs and extensions
-- `linting` - Code quality checks and pre-commit hooks
-- `py313t-src` - Environment for building HPX from source (experimental)
+| Environment | Purpose |
+| ----------- | ------- |
+| `py313t` | Default development (Python 3.13 free-threading) + editable HPyX install |
+| `test-py313t` | Run test suite (pytest + test deps) |
+| `build-py313t` | Build distributions (sdist / wheel + verification) |
+| `benchmark-py313t` | Performance benchmarking (pytest-benchmark etc.) |
+| `docs` | Documentation authoring (MkDocs + plugins) |
+| `linting` | Lint / formatting (pre-commit) |
+| `py313t-src` | Advanced: build HPX from source & test against it |
 
 To create and activate an environment:
 
@@ -90,32 +92,42 @@ To create and activate an environment:
 pixi shell -e py313t
 ```
 
-**Note: By default, HPyX is installed in development mode with all optional dependencies
-when the `py313t` pixi environment is activated.**
+**Note**: Environments that include the `hpyx` feature (e.g. `py313t`) automatically install HPyX in editable mode.
 
-### Available Tasks
-
-HPyX provides several high-level tasks for common development operations:
+### Available Tasks (High-Level)
 
 ```bash
-# Development and testing
-pixi run test                    # Run the test suite
-pixi run benchmark              # Execute performance benchmarks  
-pixi run lint                   # Run code linting and formatting checks
-
-# Building and packaging
-pixi run build                  # Build source distribution and wheel packages
-
-# Utilities
-pixi run get-python-version     # Display the current Python version
+pixi run get-python-version   # Show Python version
+pixi run test                 # Run full test suite
+pixi run benchmark            # Run benchmarks
+pixi run lint                 # Lint & format (pre-commit hooks)
+pixi run build                # Build sdist + wheel
 ```
 
-### Building the package
-
-To build distribution packages:
+Underlying / environment-scoped examples:
 
 ```bash
-pixi run build    # Builds both source distribution and wheel
+pixi run -e build-py313t build-sdist
+pixi run -e build-py313t build-wheel
+pixi run -e build-py313t build-wheel-and-test   # build wheel, install, print versions
+pixi run -e benchmark-py313t run-benchmark keyword_expression=for_loop
+pixi run -e benchmark-py313t run-benchmark keyword_expression=hpx_linalg
+```
+
+### Building the Package
+
+High-level aggregated build:
+
+```bash
+pixi run build    # Builds sdist (dist/) + wheel (wheelhouse/)
+```
+
+Granular control:
+
+```bash
+pixi run -e build-py313t build-sdist
+pixi run -e build-py313t build-wheel
+pixi run -e build-py313t build-wheel-and-test
 ```
 
 ### Running tests
@@ -126,13 +138,22 @@ To run the test suite:
 pixi run test
 ```
 
-### Performance benchmarking
+### Performance Benchmarking
 
-To run performance benchmarks:
+Run all benchmarks:
 
 ```bash
 pixi run benchmark
 ```
+
+Filter by keyword (raw task):
+
+```bash
+pixi run -e benchmark-py313t run-benchmark keyword_expression=for_loop
+pixi run -e benchmark-py313t run-benchmark keyword_expression=hpx_linalg
+```
+
+Benchmark configuration highlights: group-by function, warmup enabled, minimum 3 rounds, time unit milliseconds.
 
 #### Troubleshooting Test Issues
 
@@ -142,10 +163,10 @@ If you encounter errors related to duplicate library paths on macOS/Unix systems
 duplicate LC_RPATH '@loader_path'
 ```
 
-Run the library path fix script in an environment:
+Run the library path fix task (Unix):
 
 ```bash
-pixi run fix-lib-paths
+pixi run -e py313t fix-lib-paths
 ```
 
 This script will automatically detect and remove duplicate RPATH entries from dynamic libraries in your conda environment, which can occur due to dependency conflicts between conda packages.
@@ -166,13 +187,18 @@ Check the Python version in your current environment:
 pixi run get-python-version
 ```
 
-### Documentation development
+### Documentation Development
 
-For documentation development, use the dedicated docs environment:
+Live docs server:
 
 ```bash
-pixi shell -e docs
-pixi run start    # Start local documentation server
+pixi run -e docs start
+```
+
+Simulate Read the Docs build (maintainers):
+
+```bash
+pixi run -e docs rtd-publish
 ```
 
 ## Development
@@ -183,22 +209,14 @@ platforms and simplifies the complex build process for HPX and its dependencies.
 
 ### Development Environment
 
-HPyX provides several predefined environments optimized for different use cases:
-
-- `py313t` - Python 3.13 with free threading for development and testing
-- `test-py313t` - Comprehensive testing environment with all test dependencies
-- `build-py313t` - Build environment for creating distribution packages
-- `benchmark-py313t` - Performance benchmarking with specialized profiling tools
-- `docs` - Documentation development with MkDocs and all extensions
-- `linting` - Code quality checks, formatting, and pre-commit hooks
-- `py313t-src` - Environment for building HPX from source (experimental)
+See the environment table above (duplicated list removed for brevity).
 
 ### Build Process
 
 The build system integrates several complex components:
 
-1. **HPX C++ Library**: Built from source using git submodules for optimal performance
-2. **Nanobind Integration**: Efficient Python-C++ bindings with minimal overhead
+1. **HPX C++ Library**: Conda package or optional source build via `py313t-src` environment
+2. **Nanobind Integration**: Efficient Python–C++ bindings with minimal overhead
 3. **Free-Threading Support**: Optimizations for Python 3.13's experimental free-threading mode
 4. **Cross-Platform Support**: Consistent builds on Linux, macOS, and Windows
 
@@ -209,7 +227,36 @@ Our development approach consists of:
 1. **Core Binding Layer**: Low-level bindings for HPX C++ core functionality using Nanobind
 2. **High-Level Python API**: A Pythonic interface that wraps the core bindings
 3. **Free-Threading Integration**: Mechanisms to ensure the bindings work optimally with Python's free-threading mode
-4. **Comprehensive Testing**: Performance benchmarks and functionality tests to verify behavior
+4. **Comprehensive Testing**: Benchmarks + functionality tests to verify behavior
+
+### Advanced: Building HPX From Source
+
+For testing unreleased HPX versions or allocator variants use the `py313t-src` environment:
+
+```bash
+pixi shell -e py313t-src
+```
+
+Key tasks:
+
+```bash
+# Build specific HPX (defaults: tag=v1.11.0-rc1 malloc=system build_dir=build)
+pixi run build-hpx tag=v1.11.0-rc1 malloc=system
+
+# Install latest RC HPX + reinstall HPyX (all extras)
+pixi run install-latest-lib
+
+# Install stable HPX + reinstall HPyX (all extras)
+pixi run install-stable-lib
+```
+
+Arguments:
+
+- tag – HPX git tag
+- malloc – allocator (system default)
+- build_dir – build directory name
+
+Helper tasks (implicit): `_fetch-hpx-source`, `_pip-install-all`, `_restore-submodule`.
 
 ## Contributing
 
@@ -234,10 +281,10 @@ For a quick start:
    pixi shell -e py313t
    ```
 
-3. Install the package in development mode:
+3. (Optional) Reinstall in editable mode (already done in `py313t`):
 
    ```bash
-   pip install -e ".[all]"
+   pip install -e '.[all]'
    ```
 
 4. Run tests to verify your setup:
