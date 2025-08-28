@@ -156,7 +156,6 @@ python = "3.13.*"
 # Dependencies and tasks for building distribution packages
 [feature.build.pypi-dependencies]
 build = ">=1.2.2.post1, <2"
-auditwheel-symbols = "*"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
