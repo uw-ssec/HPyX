@@ -1,0 +1,24 @@
+## Citation metadata for the HPyX project
+## Adjust fields (e.g., doi, version, date-released) as official releases are made.
+
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "HPyX: Python Binding for the HPX C++ Library"
+version: 2025.8.28
+license: BSD-3-Clause
+type: software
+authors:
+  - family-names: "Setiawan"
+    given-names: "Landung"
+    orcid: "https://orcid.org/0000-0002-1624-2667"
+  - family-names: "Nag"
+    given-names: "Ayush"
+    orcid: "https://orcid.org/0009-0008-1790-597X"
+  - family-names: "Gordon"
+    given-names: "Madeline"
+    orcid: "https://orcid.org/0009-0003-6220-7218"
+  - given-names: Hartmut
+    family-names: Kaiser
+## Optional fields to fill in when available
+## doi: 10.5281/zenodo.xxxxxxx
+## date-released: 2025-08-28
