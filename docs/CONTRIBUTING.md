@@ -283,6 +283,45 @@ Helper tasks (invoked implicitly): `_fetch-hpx-source`, `_pip-install-all`, `_re
 * Print dependency versions: `pixi run -e build-py313t _print-versions`
 * Fix Unix library path issues: `pixi run -e py313t fix-lib-paths`
 
+## Release Process
+
+This project uses calendar-based versions (`YYYY.M.DD`). A typical release only requires a version bump in `pixi.toml` and a GitHub release tag.
+
+### Steps
+
+1. Create a branch.
+2. Update the version in `pixi.toml` to `YYYY.M.DD`.
+3. Create a release on GitHub with tag `vYYYY.M.DD` (same value for the release title) and use the auto‑generate feature for release notes.
+
+### Recommended Detailed Flow
+
+```bash
+# 1. Create a branch (example date 2025.8.28)
+git checkout -b release-2025.8.28
+
+# 2. Edit pixi.toml: set [workspace] version = "2025.8.28"
+git add pixi.toml
+git commit -m "chore: release 2025.8.28"
+git push -u origin release-2025.8.28
+
+# Open a PR and merge after CI passes.
+```
+
+After the PR merges into `main`:
+
+1. Navigate to GitHub → Releases → "Draft a new release".
+2. Tag: `v2025.8.28` (create new tag on the main branch merge commit).
+3. Release title: `v2025.8.28`.
+4. Click "Generate release notes" (adjust if needed, but prefer auto format).
+5. Publish.
+
+### Notes
+
+* If multiple releases occur the same day, append a suffix (e.g. `2025.8.28.1`) — keep the tag `v2025.8.28.1`.
+* Ensure the version matches exactly between `pixi.toml` and the Git tag (minus the leading `v`).
+* No separate CHANGELOG is required—GitHub auto‑generated notes act as the changelog.
+* Avoid adding unrelated commits to the release branch—keep it minimal for clarity and traceability.
+
 ## Getting Help
 
 * Review existing [GitHub Issues](https://github.com/uw-ssec/HPyX/issues)
