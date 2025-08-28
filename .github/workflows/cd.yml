@@ -50,6 +50,17 @@ jobs:
 
       - name: Build wheels
         run: pixi run -e build-py313t build-wheel-and-test
+      - name: Auditwheel repair (Linux only)
+        if: matrix.os == 'linux-intel'
+        run: |
+          for whl in wheelhouse/*.whl; do
+            pixi run -e build-py313t auditwheel show "$whl"
+            pixi run -e build-py313t auditwheel repair "$whl" --plat manylinux_2_39_x86_64 -w wheelhouse/
+            # Remove the original wheel
+            rm "$whl"
+          done
+          # List the repaired wheels
+          ls -lh wheelhouse/
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
