@@ -136,3 +136,12 @@ isort.required-imports = ["from __future__ import annotations"]
 
 [tool.cibuildwheel]
 enable = "cpython-freethreading"
+
+[tool.cibuildwheel.windows]
+archs = ["x86_64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
