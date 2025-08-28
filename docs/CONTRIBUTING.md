@@ -1,16 +1,16 @@
 # Contributing to HPyX
 
-Thank you for your interest in contributing to HPyX! This guide will help you set up your development environment and understand the workflow for contributing to this project.
+Thank you for your interest in contributing to HPyX! This guide will help you set up your development environment and understand how the pixi task system maps to common contributor workflows.
 
 ## Development Environment Setup
 
-HPyX uses [pixi](https://pixi.sh/) for environment and dependency management, which ensures consistent development environments across different platforms.
+HPyX uses [pixi](https://pixi.sh/) for deterministic environment and dependency management across platforms.
 
 ### Prerequisites
 
-1. Install pixi following the instructions on the [pixi documentation](https://pixi.sh/latest/install/)
-2. Python 3.13 (preferably built with `--disable-gil` for optimal free-threading performance)
-3. Modern C++ compiler with C++17 support (GCC 8+, Clang 8+, MSVC 2019+)
+1. Install pixi – follow the [pixi install docs](https://pixi.sh/latest/install/)
+2. Python 3.13 (preferably built with `--disable-gil` for optimal free‑threading performance)
+3. Modern C++ compiler with C++17 support (GCC ≥8, Clang ≥8, MSVC 2019+)
 
 ### Getting Started
 
@@ -21,29 +21,31 @@ HPyX uses [pixi](https://pixi.sh/) for environment and dependency management, wh
    cd HPyX
    ```
 
-2. Set up the development environment using one of the predefined environments:
+2. Choose and activate a predefined environment:
 
-   - `py313t` - Python 3.13 with free threading for development and testing
-   - `test-py313t` - Testing environment with all test dependencies
-   - `build-py313t` - Build environment for creating distribution packages
-   - `benchmark-py313t` - Performance benchmarking with specialized tools
-   - `docs` - Documentation development with MkDocs and extensions
-   - `linting` - Code quality checks and pre-commit hooks
-   - `py313t-src` - Environment for building HPX from source (experimental)
+   | Environment | Purpose |
+   | ----------- | ------- |
+   | `py313t` | Default development (Python 3.13 free‑threading) + editable HPyX install |
+   | `test-py313t` | Run the test suite (pytest + test deps) |
+   | `build-py313t` | Build distributions (sdist/wheel + verification) |
+   | `benchmark-py313t` | Performance benchmarking (pytest-benchmark etc.) |
+   | `docs` | Documentation authoring (MkDocs + plugins) |
+   | `linting` | Lint / formatting (pre-commit hooks) |
+   | `py313t-src` | Advanced: build HPX from source & test against it |
 
-3. Activate your chosen environment:
+3. Activate (example):
 
    ```bash
    pixi shell -e py313t
    ```
 
-**Note**: The `py313t` environment automatically installs HPyX in development mode with all optional dependencies when activated.
+**Note**: Environments containing the `hpyx` feature automatically install HPyX in editable mode.
 
 ## Development Workflow
 
 ### Environment Management
 
-Check your Python version:
+Check Python version:
 
 ```bash
 pixi run get-python-version
@@ -51,206 +53,242 @@ pixi run get-python-version
 
 ### Building and Installation
 
-**Note**: Most installation tasks are currently integrated into the pixi environments. The `py313t` environment automatically handles package installation in development mode.
-
-#### Manual Installation (if needed)
-
-For manual installation in a specific environment:
+Editable installation happens automatically in most dev environments. Manual commands (rarely needed):
 
 ```bash
 pixi shell -e py313t
-pip install -e ".[all]"  # Development mode with all dependencies
-pip install -e .         # Development mode, minimal dependencies
+pip install -e .          # minimal deps
+pip install -e '.[all]'   # all optional deps
 ```
 
-#### Building Distribution Packages
+#### Build Distribution Artifacts
 
-Build source distribution and wheel packages:
+High-level aggregated task:
 
 ```bash
-pixi run build              # Build both source distribution and wheel
+pixi run build            # Builds sdist (dist/) + wheel (wheelhouse/)
+```
+
+Underlying tasks (explicit control):
+
+```bash
+pixi run -e build-py313t build-sdist
+pixi run -e build-py313t build-wheel
+pixi run -e build-py313t build-wheel-and-test   # build wheel, install, print versions
+```
+
+Auxiliary (used internally but callable):
+
+```bash
+pixi run -e build-py313t _install-wheel
+pixi run -e build-py313t _print-versions
 ```
 
 ### Testing
 
-Run the test suite:
+Run full test suite:
 
 ```bash
 pixi run test
 ```
 
-The test task:
+Details:
 
-- Uses the `test-py313t` environment with all test dependencies
-- Runs pytest with verbose output and short tracebacks
+* Uses `test-py313t` environment
+* Verbose, short tracebacks (`-v --tb=short`)
 
 ### Benchmarking
 
-Run performance benchmarks:
+Aggregate benchmarks:
 
 ```bash
-pixi run benchmark                         # Run all benchmarks
+pixi run benchmark
 ```
 
-You can also filter benchmarks using pytest's keyword expressions by passing arguments:
+Filter via keyword expression (call raw task with argument):
 
 ```bash
-# Note: Benchmark filtering is handled internally by the benchmark task
-# Check the benchmark task configuration for filtering options
+pixi run -e benchmark-py313t run-benchmark keyword_expression=for_loop
+pixi run -e benchmark-py313t run-benchmark keyword_expression=hpx_linalg
 ```
 
-The benchmark task:
+Benchmark configuration highlights:
 
-- Uses the `benchmark-py313t` environment with specialized profiling tools
-- Groups results by function for better organization
-- Enables warmup runs for accurate measurements
-- Runs minimum 3 rounds per test for statistical reliability
-- Displays timing in milliseconds
-- Supports keyword filtering for running specific benchmarks
+* Group by function (`--benchmark-group-by=func`)
+* Warmup enabled
+* Minimum 3 rounds for statistical reliability
+* Time unit: milliseconds
 
 ### Code Quality and Linting
 
-#### Pre-commit Setup
-
-HPyX uses pre-commit hooks to maintain code quality. Run linting on all files:
+Run pre-commit hooks across the repository:
 
 ```bash
 pixi run lint
 ```
 
-The linting task:
+Internally runs in `linting` environment:
 
-- Uses the `linting` environment with pre-commit and formatting tools
-- Runs pre-commit hooks on all files
-- Shows diffs when failures occur
-- Includes formatters, linters, and other code quality tools
+* Cleans pre-commit cache (`pre-commit clean`)
+* Executes all hooks with diff on failure
 
 ### Documentation
 
-#### Working with Documentation
+HPyX uses MkDocs.
 
-HPyX uses MkDocs for documentation. To work on documentation:
-
-1. Start the documentation server (requires the docs environment):
+1. Live server (auto reload):
 
    ```bash
    pixi run -e docs start
    ```
 
-   Open the url provided in the terminal.
-
-2. For testing out the Read the Docs publishing (maintainers only):
+2. Simulate Read the Docs build (maintainers):
 
    ```bash
    pixi run -e docs rtd-publish
    ```
 
-   This will create an `html` directory with the built documentation.
+   Generates `html/` output.
 
 ## Project Structure
 
-### Key Directories
+Key directories:
 
-- `src/` - C++ source code and Python bindings
-- `src/hpyx/` - Python package source
-- `tests/` - Test suite
-- `benchmarks/` - Performance benchmarks
-- `docs/` - Documentation source
-- `vendor/hpx/` - HPX C++ library submodule
-- `scripts/` - Build and utility scripts
+* `src/` – C++ source & Python bindings
+* `src/hpyx/` – Python package
+* `tests/` – Unit / functional tests
+* `benchmarks/` – Performance benchmarks
+* `docs/` – Documentation sources
+* `vendor/hpx/` – HPX C++ library submodule
+* `scripts/` – Build & utility scripts
 
-### Configuration Files
+Configuration highlights:
 
-- `pixi.toml` - Project configuration and task definitions
-- `pyproject.toml` - Python package configuration
-- `CMakeLists.txt` - C++ build configuration
+* `pixi.toml` – Environments & tasks
+* `pyproject.toml` – Python packaging config
+* `CMakeLists.txt` – C++ build configuration
 
 ## Understanding HPyX Architecture
 
-HPyX consists of several key components:
-
-1. **Core Binding Layer**: Low-level Nanobind bindings for HPX C++ functionality
-2. **High-Level Python API**: Pythonic interface wrapping core bindings
-3. **Free-Threading Integration**: Optimizations for Python 3.13's free-threading mode
-4. **Testing Framework**: Comprehensive tests for functionality and performance
+1. **Core Binding Layer** – Nanobind bindings to HPX C++
+2. **High-Level Python API** – Pythonic wrappers & convenience utilities
+3. **Free-Threading Integration** – Optimizations for Python 3.13 no-GIL mode
+4. **Testing & Benchmarking** – Validation & performance tracking
 
 ## Contribution Guidelines
 
 ### Code Style
 
-- Follow existing code conventions
-- Use pre-commit hooks (run `pixi run lint` before committing)
-- Write clear, descriptive commit messages
+* Follow existing conventions
+* Run `pixi run lint` before committing
+* Use clear, descriptive commit messages
 
 ### Development Testing
 
-- Add tests for new functionality
-- Ensure all tests pass with `pixi run test`
-- Include benchmarks for performance-critical features
+* Add tests for new functionality
+* Ensure `pixi run test` passes
+* Provide benchmarks for performance-sensitive changes
 
 ### Documentation Guidelines
 
-- Update documentation for API changes
-- Include docstrings for new functions and classes
-- Add examples for new features
+* Update docs for API changes
+* Include docstrings for new functions/classes
+* Add usage examples where helpful
 
 ### Pull Request Process
 
 1. Fork the repository
 2. Create a feature branch from `main`
-3. Make your changes
-4. Run tests and linting: `pixi run test && pixi run lint`
-5. Update documentation as needed
-6. Submit a pull request with a clear description
+3. Implement changes
+4. Run validation: `pixi run test && pixi run lint`
+5. Update docs if needed
+6. Open a PR with a clear description (reference issues where applicable)
 
 ### Development Utilities
 
-#### Check Python Version
+Check Python version:
 
 ```bash
 pixi run get-python-version
 ```
 
-#### Available Development Tasks
+#### Available High-Level Tasks
 
 ```bash
-pixi run test          # Run the complete test suite
-pixi run benchmark     # Execute performance benchmarks
-pixi run lint          # Run code quality checks and formatting
-pixi run build         # Build distribution packages
+pixi run get-python-version   # Show Python version
+pixi run test                 # Run full test suite
+pixi run benchmark            # Run benchmarks
+pixi run lint                 # Lint & format (pre-commit)
+pixi run build                # Build sdist + wheel
 ```
+
+#### Underlying Environment-Scoped Tasks
+
+| Environment | Task | Purpose |
+|-------------|------|---------|
+| test-py313t | run-test | Raw pytest execution |
+| benchmark-py313t | run-benchmark | Benchmarks (arg: keyword_expression=) |
+| linting | linter | Run pre-commit hooks |
+| linting | pre-commit-clean | Clean pre-commit cache |
+| build-py313t | build-sdist | Build source distribution |
+| build-py313t | build-wheel | Build wheel distribution |
+| build-py313t | build-wheel-and-test | Build wheel, install, print versions |
+| build-py313t | _install-wheel | Force reinstall built wheel |
+| build-py313t | _print-versions | Show dependency versions |
+| docs | start | Live docs server |
+| docs | rtd-publish | Build docs (RTD style) |
+| py313t-src | build-hpx | Build HPX from source (args: tag, malloc, build_dir) |
+| py313t-src | install-latest-lib | Build RC HPX + reinstall HPyX (all extras) |
+| py313t-src | install-stable-lib | Build stable HPX + reinstall HPyX (all extras) |
+| py313t | fix-lib-paths | (Unix) fix HPX library paths |
+
+(Tasks starting with an underscore are internal helpers but callable.)
 
 ## Advanced Development
 
-### Working with HPX Source Builds
+### Working with HPX Source Builds (Advanced)
 
-For advanced development that requires building HPX from source, use the experimental `py313t-src` environment:
+Use `py313t-src` when you need HPX built from source (e.g. testing a release candidate or allocator variations):
 
 ```bash
 pixi shell -e py313t-src
 ```
 
-This environment provides tools for:
+Key tasks:
 
-- Building HPX from source with different configurations
-- Testing against development versions of HPX
-- Custom HPX build options and parameters
+```bash
+# Build a specific HPX version (defaults: tag=v1.11.0-rc1 malloc=system build_dir=build)
+pixi run build-hpx tag=v1.11.0-rc1 malloc=system
 
-**Note**: Source builds are experimental and primarily for advanced development use cases.
+# Install latest RC HPX + reinstall HPyX (all extras)
+pixi run install-latest-lib
 
-### Debugging
+# Install stable HPX + reinstall HPyX (all extras)
+pixi run install-stable-lib
+```
 
-- Use the appropriate pixi environment for your development task
-- Check build logs and outputs within each environment
-- The `py313t` environment provides the most stable development setup
-- For HPX-specific issues, the `py313t-src` environment allows source-level debugging
+Arguments for `build-hpx`:
+
+* `tag` – HPX git tag (default: `v1.11.0-rc1`)
+* `malloc` – allocator (`system` by default)
+* `build_dir` – build directory name (`build` by default)
+
+Helper tasks (invoked implicitly): `_fetch-hpx-source`, `_pip-install-all`, `_restore-submodule`.
+
+## Debugging
+
+* Confirm environment: `pixi env list` then `pixi shell -e <env>`
+* Reproduce build issues: `pixi run -e build-py313t build-wheel-and-test`
+* Inspect HPX source builds in the chosen `build_dir`
+* Print dependency versions: `pixi run -e build-py313t _print-versions`
+* Fix Unix library path issues: `pixi run -e py313t fix-lib-paths`
 
 ## Getting Help
 
-- Check existing [GitHub Issues](https://github.com/uw-ssec/HPyX/issues)
-- Read the [HPX documentation](https://hpx-docs.stellar-group.org/) for C++ library details
-- Review [Nanobind documentation](https://nanobind.readthedocs.io/) for binding patterns
-- Ask questions in GitHub Discussions
+* Review existing [GitHub Issues](https://github.com/uw-ssec/HPyX/issues)
+* Read [HPX documentation](https://hpx-docs.stellar-group.org/)
+* See [Nanobind documentation](https://nanobind.readthedocs.io/)
+* Open discussion threads or ask questions in GitHub Discussions
 
 ## License
 
