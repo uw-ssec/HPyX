@@ -159,6 +159,7 @@ build = ">=1.2.2.post1, <2"
 
 [feature.build.dependencies]
 scikit-build-core = "*"
+auditwheel = "*"
 
 [feature.build.tasks.build-sdist]
 cmd = ["python", "-m", "build", ".", "--sdist", "--outdir", "dist"]
