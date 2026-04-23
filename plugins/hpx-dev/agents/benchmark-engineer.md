@@ -1,6 +1,7 @@
 ---
 name: benchmark-engineer
-description: Use this agent to write, run, and analyze performance benchmarks for HPyX bindings. Trigger when the user wants to benchmark a new binding, compare HPX vs Python/NumPy performance, measure thread scaling, or analyze performance results. Examples:
+description: |
+  Use this agent to write, run, and analyze performance benchmarks for HPyX bindings. Trigger when the user wants to benchmark a new binding, compare HPX vs Python/NumPy performance, measure thread scaling, or analyze performance results. Examples:
 
   <example>
   Context: User added a new binding and wants to benchmark it

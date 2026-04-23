@@ -1,6 +1,7 @@
 ---
 name: binding-reviewer
-description: Use this agent to review C++/Python binding code for correctness, GIL safety, and adherence to HPyX patterns. Trigger proactively after writing or modifying C++ binding code in src/*.cpp or Python wrappers in src/hpyx/. Examples:
+description: |
+  Use this agent to review C++/Python binding code for correctness, GIL safety, and adherence to HPyX patterns. Trigger proactively after writing or modifying C++ binding code in src/*.cpp or Python wrappers in src/hpyx/. Examples:
 
   <example>
   Context: User just wrote a new Nanobind binding in src/

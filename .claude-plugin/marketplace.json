@@ -1,0 +1,15 @@
+{
+  "name": "hpyx-local",
+  "owner": {
+    "name": "Landung 'Don' Setiawan",
+    "email": "landungs@uw.edu",
+    "url": "https://github.com/lsetiawan"
+  },
+  "plugins": [
+    {
+      "name": "hpx-dev",
+      "source": "./plugins/hpx-dev",
+      "description": "Development toolkit for HPyX — HPX Python bindings."
+    }
+  ]
+}

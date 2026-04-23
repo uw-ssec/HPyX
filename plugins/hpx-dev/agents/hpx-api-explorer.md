@@ -1,6 +1,7 @@
 ---
 name: hpx-api-explorer
-description: Use this agent to explore HPX C++ source code and find APIs suitable for Python binding. Trigger when the user wants to discover what HPX features are available, understand an HPX API's signature, or research how to wrap a specific HPX component. Examples:
+description: |
+  Use this agent to explore HPX C++ source code and find APIs suitable for Python binding. Trigger when the user wants to discover what HPX features are available, understand an HPX API's signature, or research how to wrap a specific HPX component. Examples:
 
   <example>
   Context: User wants to find HPX APIs to wrap
