@@ -1,0 +1,14 @@
+{
+  "name": "hpx-dev",
+  "version": "0.1.0",
+  "description": "Development toolkit for HPyX — HPX Python bindings. Provides deep HPX knowledge, binding patterns, build system guidance, benchmarking, and code review for contributors.",
+  "author": {
+    "name": "Landung 'Don' Setiawan",
+    "email": "landungs@uw.edu",
+    "url": "https://github.com/lsetiawan"
+  },
+  "homepage": "https://github.com/uw-ssec/HPyX",
+  "repository": "https://github.com/uw-ssec/HPyX",
+  "license": "BSD-3-Clause",
+  "keywords": ["hpx", "hpyx", "nanobind", "python-bindings", "parallel-computing", "free-threading", "c++", "hpc", "scientific-computing", "performance", "code-review"]
+}
