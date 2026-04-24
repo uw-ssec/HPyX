@@ -12,7 +12,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "init_hpx.hpp"
+#include "runtime.hpp"
 #include "algorithms.hpp"
 #include "futures.hpp"
 

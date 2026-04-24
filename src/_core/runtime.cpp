@@ -1,7 +1,7 @@
 #include <hpx/hpx.hpp>
 #include <hpx/hpx_start.hpp>
 
-#include "init_hpx.hpp"
+#include "runtime.hpp"
 #include <nanobind/nanobind.h>
 
 #include <cstddef>
