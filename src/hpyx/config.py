@@ -13,6 +13,7 @@ DEFAULTS: dict[str, Any] = {
     "cfg": [],
     "autoinit": True,
     "trace_path": None,
+    "async_mode": "async",
 }
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
@@ -60,5 +61,14 @@ def from_env() -> dict[str, Any]:
     raw_trace = os.environ.get("HPYX_TRACE_PATH")
     if raw_trace is not None:
         cfg["trace_path"] = raw_trace
+
+    raw_async_mode = os.environ.get("HPYX_ASYNC_MODE")
+    if raw_async_mode is not None:
+        lowered = raw_async_mode.strip().lower()
+        if lowered not in {"async", "deferred"}:
+            raise ValueError(
+                f"HPYX_ASYNC_MODE={raw_async_mode!r} must be 'async' or 'deferred'"
+            )
+        cfg["async_mode"] = lowered
 
     return cfg
