@@ -15,25 +15,28 @@ HPyX is a high-performance Python library providing bindings to the HPX C++ runt
 
 ## Getting Started
 
-HPyX provides:
-
-- `HPXRuntime`: Context manager for HPX runtime lifecycle
-- `hpyx.futures.submit`: Submit functions for asynchronous execution
-- `hpyx.multiprocessing.for_loop`: Parallel iteration over collections
-
-**Example:**
+HPyX v1 auto-initializes the HPX runtime on first use — no setup boilerplate required:
 
 ```python
-from hpyx.runtime import HPXRuntime
 from hpyx.futures import submit
 from hpyx.multiprocessing import for_loop
 
-with HPXRuntime():
-	future = submit(lambda x: x * x, 5)
-	print(future.get())
-	data = [1, 2, 3]
-	for_loop(lambda x: x + 1, data, "seq")
-	print(data)
+# Submit work asynchronously — runtime starts automatically
+future = submit(lambda x: x * x, 5)
+print(future.get())  # 25
+
+# Parallel iteration
+data = [1, 2, 3]
+for_loop(lambda x: x + 1, data, "seq")
+print(data)  # [2, 3, 4]
+```
+
+To control thread count or configuration explicitly:
+
+```python
+import hpyx
+
+hpyx.init(os_threads=8)  # or set HPYX_OS_THREADS=8 in the environment
 ```
 
 For more details, see the [Usage Guide](usage.md).
@@ -43,6 +46,12 @@ For more details, see the [Usage Guide](usage.md).
 ## API Reference
 
 Full API documentation is available in the [API Reference](reference/api.md).
+
+---
+
+## Architecture Decisions
+
+Significant design choices and their rationale are recorded in the [Architecture Decisions](architecture-decisions.md) log.
 
 ---
 

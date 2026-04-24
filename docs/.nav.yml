@@ -2,5 +2,6 @@ nav:
   - Overview:
       - Welcome to HPyX Documentation: index.md
       - Usage Guide: usage.md
+      - Architecture Decisions: architecture-decisions.md
   - API Reference: reference/api.md
   - Contributing: CONTRIBUTING.md
