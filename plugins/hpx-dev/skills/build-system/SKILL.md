@@ -70,11 +70,13 @@ nanobind_add_module(
 ### Linking HPX Libraries
 ```cmake
 target_link_libraries(_core PRIVATE
-  HPX::hpx
-  HPX::wrap_main
-  HPX::iostreams_component
+  HPX::hpx                  # main HPX library (pulls in libs/full via HPX_WITH_DISTRIBUTED_RUNTIME)
+  HPX::wrap_main            # replaces main() to bootstrap HPX command-line parsing (Boost.ProgramOptions)
+  HPX::iostreams_component  # hpx::cout support
 )
 ```
+
+**Why `HPX::wrap_main` is required**: `hpx::start` internally parses `argc`/`argv` via Boost.ProgramOptions. Without `wrap_main`, command-line argument processing may fail in a Python extension context where there is no conventional `main()`.
 
 ### Adding a New Source File
 
@@ -116,7 +118,7 @@ The `src/` layout means Python sources live in `src/hpyx/` while C++ sources are
 
 ## Building HPX from Source
 
-When the latest HPX version is not yet on conda-forge:
+When the conda-forge HPX build lags behind a needed upstream feature, build from the `vendor/hpx/` submodule:
 
 ```bash
 pixi shell -e py313t-src
@@ -124,43 +126,7 @@ pixi run build-hpx tag=v1.11.0-rc1
 pixi run install-latest-lib
 ```
 
-This uses `scripts/build.sh` to:
-1. Checkout the specified HPX version in `vendor/hpx/`
-2. Build HPX with CMake + Ninja
-3. Install to the pixi environment prefix
-
-## Common Build Issues
-
-### Missing HPX Package
-```
-Could not find a package configuration file provided by "HPX"
-```
-**Fix**: Ensure HPX is installed: `pixi shell -e py313t` (conda-forge provides HPX)
-
-### Nanobind Not Found
-```
-Could not find a configuration file for package "nanobind"
-```
-**Fix**: Run `pip install nanobind>=2.7.0` or ensure the pixi environment is active
-
-### RPATH Issues on macOS
-```
-dyld: Library not loaded...
-```
-**Fix**: The CMakeLists.txt sets `CMAKE_INSTALL_RPATH "$ORIGIN"`. On macOS, the `dynamic_lookup` flag handles Python symbol resolution. Ensure building within the pixi environment.
-
-### Link Errors with HPX Components
-```
-undefined reference to `hpx::some_function`
-```
-**Fix**: Add the missing HPX component to `target_link_libraries`. Check which HPX target provides the symbol by searching `vendor/hpx/cmake/`.
-
-### Rebuild After C++ Changes
-```bash
-pip install --no-build-isolation -ve .   # Editable install, fast rebuild
-# Or with auto-rebuild on import:
-pip install --no-build-isolation -ve . -Ceditable.rebuild=true
-```
+For full CMake options, the vendor vs conda-forge relationship, runtime config strings (`cfg` keys like `hpx.os_threads!=N`), and the C++17 requirement, see **`references/hpx-from-source.md`**.
 
 ## Development Workflow
 
@@ -179,6 +145,17 @@ ls src/hpyx/_core*.so
 # 5. Test
 pixi run test
 
-# 5. Benchmark (optional)
+# 6. Benchmark (optional)
 pixi run benchmark
 ```
+
+## Diagnosing Build Failures
+
+For common errors — missing HPX package, Nanobind not found, macOS RPATH issues, HPX component link errors, rebuild commands, Python ABI mismatch — see **`references/build-errors.md`**.
+
+## Additional Resources
+
+### Reference Files
+
+- **`references/hpx-from-source.md`** — Building HPX from vendor submodule, CMake options, runtime config strings, C++17 requirement
+- **`references/build-errors.md`** — Common build errors with diagnostic commands and fixes
