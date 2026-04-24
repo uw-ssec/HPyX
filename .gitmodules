@@ -1,3 +1,9 @@
 [submodule "vendor/hpx"]
 	path = vendor/hpx
 	url = https://github.com/STEllAR-GROUP/hpx
+[submodule "vendor/dask"]
+	path = vendor/dask
+	url = https://github.com/dask/dask/
+[submodule "vendor/distributed"]
+	path = vendor/distributed
+	url = https://github.com/dask/distributed.git
