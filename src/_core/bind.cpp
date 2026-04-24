@@ -12,7 +12,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "init_hpx.hpp"
+#include "runtime.hpp"
 #include "algorithms.hpp"
 #include "futures.hpp"
 
@@ -59,6 +59,9 @@ NB_MODULE(_core, m)
 {
     m.doc() = "Python bindings for HPX C++ API";
 
+    auto m_runtime = m.def_submodule("runtime");
+    hpyx::runtime::register_bindings(m_runtime);
+
     // Bind HPX future for nanobind
     bind_hpx_future<nb::object>(m, "future");
 
@@ -72,17 +75,6 @@ NB_MODULE(_core, m)
     m.def("dot1d", &algorithms::dot1d, "a"_a, "b"_a);
     m.def("hpx_for_loop", &algorithms::hpx_for_loop, "function"_a, "iterable"_a, "policy"_a, "Parallel for loop over an interable");
     
-    // Binding HPX runtime initialization and shutdown
-    m.def("init_hpx_runtime", &init_hpx_runtime);
-    m.def("stop_hpx_runtime", &stop_hpx_runtime);
-
-    // Binding HPX Utility functions
-    m.def("get_num_worker_threads", []()
-          { return hpx::get_num_worker_threads(); });
-    m.def("hpx_complete_version", [](){
-        return hpx::complete_version();
-    });
-
     // TODO: Uncomment and implement the following if needed
     //
     // m.def("hpx_transform", [](nb::callable f, nb::args args)

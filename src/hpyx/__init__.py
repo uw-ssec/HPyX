@@ -1,35 +1,42 @@
-"""
-HPyX: Python interface for the C++ HPX library.
-
-HPyX provides Python bindings for the High Performance ParalleX (HPX) library,
-enabling high-performance parallel and distributed computing in Python applications.
-
-Important
----------
-The futures and multiprocessing modules require an active HPX runtime.
-Use the HPXRuntime context manager to ensure proper initialization and
-cleanup before calling functions from these modules:
-
-    >>> from hpyx import HPXRuntime, futures, multiprocessing
-    >>> with HPXRuntime() as runtime:
-    ...     # Use futures and multiprocessing functions here
-    ...     result = futures.submit(my_function, args)
-
-Alternatively, use HPXExecutor as a standalone context manager for
-task-based execution.
-"""
+"""HPyX: Pythonic bindings for the HPX C++ parallel runtime."""
 
 from __future__ import annotations
 
 try:
-    import hpyx._version as v
-
-    __version__ = v.version
+    from hpyx._version import version as __version__
 except ImportError:
-    __version__ = "0.0.0"  # Fallback version
+    __version__ = "0.0.0"
 
-from . import futures, multiprocessing
-from .executor import HPXExecutor
-from .runtime import HPXRuntime
+from hpyx import _runtime, config, debug
+from hpyx._runtime import is_running, shutdown
 
-__all__ = ["HPXExecutor", "HPXRuntime", "futures", "multiprocessing"]
+from hpyx.executor import HPXExecutor
+from hpyx.runtime import HPXRuntime
+from hpyx import futures, multiprocessing
+
+
+def init(
+    *,
+    os_threads: int | None = None,
+    cfg: list[str] | None = None,
+) -> None:
+    """Explicitly start the HPX runtime. Idempotent within a process.
+
+    Raises RuntimeError if the runtime is already started with conflicting
+    config, or if the runtime was previously stopped (HPX cannot restart).
+    """
+    _runtime.ensure_started(os_threads=os_threads, cfg=cfg)
+
+
+__all__ = [
+    "HPXExecutor",
+    "HPXRuntime",
+    "__version__",
+    "config",
+    "debug",
+    "futures",
+    "init",
+    "is_running",
+    "multiprocessing",
+    "shutdown",
+]

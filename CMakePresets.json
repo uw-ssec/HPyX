@@ -1,0 +1,28 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Release build",
+      "description": "Release-optimized build via scikit-build-core's default CMake config",
+      "binaryDir": "${sourceDir}/build/default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "profile",
+      "displayName": "Profile (RelWithDebInfo + frame pointers)",
+      "description": "Release-level optimization with debug info + frame pointers so py-spy/perf/memray can resolve C++ frames.",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build/profile",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -fno-omit-frame-pointer",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF",
+        "CMAKE_CXX_VISIBILITY_PRESET": "default"
+      }
+    }
+  ]
+}

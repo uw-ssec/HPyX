@@ -86,10 +86,10 @@ endif()
 nanobind_add_module(
   _core
   FREE_THREADED
-  src/bind.cpp
-  src/init_hpx.cpp
-  src/algorithms.cpp
-  src/futures.cpp
+  src/_core/bind.cpp
+  src/_core/runtime.cpp
+  src/_core/algorithms.cpp
+  src/_core/futures.cpp
 )
 
 # TODO: Add new modules here, maybe even HPX modules?

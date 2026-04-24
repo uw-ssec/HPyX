@@ -162,7 +162,7 @@ def show_versions(file=sys.stdout):
     print("\nHPX C++ COMPLETE VERSIONS", file=file)
     print("-------------------------", file=file)
     
-    print(_core.hpx_complete_version(), file=file)
+    print(_core.runtime.hpx_version_string(), file=file)
 
 
 if __name__ == "__main__":
