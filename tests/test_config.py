@@ -78,3 +78,13 @@ def test_from_env_async_mode_invalid(monkeypatch):
     monkeypatch.setenv("HPYX_ASYNC_MODE", "bogus")
     with pytest.raises(ValueError, match="HPYX_ASYNC_MODE"):
         config.from_env()
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("ASYNC", "async"),
+    ("DEFERRED", "deferred"),
+    ("  Deferred  ", "deferred"),
+])
+def test_from_env_async_mode_case_insensitive(monkeypatch, value, expected):
+    monkeypatch.setenv("HPYX_ASYNC_MODE", value)
+    assert config.from_env()["async_mode"] == expected
