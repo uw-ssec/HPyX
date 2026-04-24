@@ -186,3 +186,40 @@ This flag:
 - Enables per-object locking where needed
 - Makes GIL acquire/release no-ops when GIL is disabled
 - Must be set for all HPyX modules
+
+## HPX Runtime Semantics in Bindings
+
+Notes on HPX-specific behavior that affects binding correctness, beyond Nanobind itself.
+
+### `hpx::function` vs `std::function`
+
+`hpx::function<Sig>` (from `libs/core/functional/`) is a **serializable** function wrapper intended for HPX actions that cross locality boundaries. For local-only binding code, prefer `std::function` — it has no serialization overhead and the same call semantics. Use `hpx::function` only if the callable must cross localities (out of HPyX's scope).
+
+### Invalid / Default-Constructed Futures
+
+`hpx::future<T>()` produces an invalid future (no shared state). Calling `.get()` on it throws `hpx::exception`. When binding types that hold futures, either:
+
+- Initialize the future with `hpx::make_ready_future<T>(value)`, or
+- Guard `.get()` calls with `.valid()` and raise a Python `RuntimeError` on invalid state.
+
+### `.get()` and the GIL
+
+The correct GIL action for `.get()` depends on the launch policy of the future:
+
+| Future launch | `.get()` GIL behavior | Reason |
+|---|---|---|
+| `launch::deferred` | Do NOT release the GIL | The callable runs in the caller's thread and needs the GIL to call Python |
+| `launch::async` | SHOULD release the GIL during the wait | The callable already ran on an HPX thread; `.get()` only waits, which may be long |
+| Future from pure-C++ algorithm (e.g., `par(task)`) | SHOULD release the GIL | Wait may be long; no Python involvement on the HPX side |
+
+### Executor Lifetime
+
+Custom executor objects (e.g., `fork_join_executor`, `thread_pool_executor`) must outlive all tasks dispatched through them. A stack-allocated executor that is destroyed before its tasks complete is undefined behavior. Options:
+
+- Hold executors as module-level statics (`static` inside the binding function).
+- Store them as members of a long-lived `nb::class_`-bound object.
+- Capture a `std::shared_ptr<ExecutorT>` into the task lambda.
+
+### Policy Objects Are `constexpr`
+
+`hpx::execution::par`, `seq`, `par_unseq`, `unseq` are `constexpr` global singletons — safe to use from any thread without lifetime concerns. No need to capture them by value or worry about destruction.

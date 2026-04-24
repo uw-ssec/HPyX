@@ -215,18 +215,34 @@ Follow the pattern `test_bench_{implementation}_{operation}`:
 - `test_bench_np_dot1d` — NumPy baseline
 - `test_bench_python_for_loop` — Pure Python baseline
 
+## End-to-End Benchmarking Workflow
+
+```
+1. Write benchmark            → follow patterns above, parametrize by size
+2. Run (pixi run benchmark)   → verify no HPX init errors in stderr
+3. Spot-check correctness     → print one result, compare against NumPy
+4. Inspect StdDev / Mean      → ratio should be small (<5%)
+5. Save baseline              → pytest --benchmark-save=baseline
+6. Iterate and compare        → pytest --benchmark-compare=baseline
+```
+
 ## Analyzing Results
 
-Before trusting timing data, verify:
-- HPXRuntime started cleanly (no initialization errors in stderr)
-- Operation results are numerically correct (spot-check against NumPy)
-- StdDev is small relative to Mean — high variance indicates noise or warmup issues
+Before trusting timing data, verify each of the following and apply the remediation if the check fails:
+
+| Check | Remediation if failing |
+|---|---|
+| HPXRuntime started cleanly (no init errors in stderr) | Re-enter `pixi shell -e benchmark-py313t`; check TCP is disabled (`hpx.parcel.tcp.enable!=0`) |
+| Results numerically correct (spot-check against NumPy) | Bug in the binding — not a performance issue; fix correctness first |
+| StdDev small relative to Mean (< 5%) | Increase `--benchmark-min-rounds`, disable CPU frequency scaling, kill background processes, or pin CPUs with `taskset` |
+| Warmup sufficient | Keep `--benchmark-warmup=on`; for cold-cache benchmarks set `--benchmark-warmup=off` explicitly |
 
 Key metrics to evaluate:
+
 1. **HPX vs NumPy ratio** — Target: HPX competitive or faster for large data
-2. **Thread scaling efficiency** — Near-linear scaling up to core count
-3. **Binding overhead** — Small constant overhead acceptable for large workloads
-4. **Memory bandwidth** — Operations may be memory-bound at large sizes
+2. **Thread scaling efficiency** — Near-linear up to core count; plateau beyond indicates memory bandwidth limits
+3. **Binding overhead** — Small constant overhead acceptable for large workloads; if dominant at all sizes, the binding is misconfigured
+4. **Memory bandwidth** — Throughput-bound operations cap at `num_sockets × per-socket-BW`
 
 ## Additional Resources
 

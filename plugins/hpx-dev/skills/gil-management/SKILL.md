@@ -144,3 +144,51 @@ HPyX currently uses `hpx::launch::deferred` for all Python-facing async operatio
 3. No true parallel Python execution occurs — parallelism is in pure C++ operations
 
 When implementing true parallel execution (non-deferred), switch to `hpx::launch::async` and ensure every lambda that touches Python acquires the GIL.
+
+## Verifying a GIL Fix
+
+After applying a GIL change, confirm correctness before declaring it fixed — GIL bugs often manifest probabilistically, so a single happy-path run is not proof:
+
+```bash
+# 1. Clean rebuild to ensure the fix actually compiled in
+pip install --no-build-isolation -ve .
+
+# 2. Run the targeted test under repeat stress — catches races that pass once but fail under load
+pytest tests/test_<feature>.py --count=50 -x   # requires pytest-repeat
+
+# 3. Run the same test from multiple Python threads to exercise concurrent entry
+python -c "
+import threading
+from hpyx.runtime import HPXRuntime
+from hpyx import _core
+with HPXRuntime():
+    errs = []
+    def worker():
+        try:
+            _core.<function>(<args>)
+        except Exception as e:
+            errs.append(e)
+    ts = [threading.Thread(target=worker) for _ in range(16)]
+    for t in ts: t.start()
+    for t in ts: t.join()
+    assert not errs, errs
+    print('OK')
+"
+
+# 4. Run with faulthandler enabled so any segfault prints a traceback
+PYTHONFAULTHANDLER=1 pytest tests/test_<feature>.py
+```
+
+If any step hangs, segfaults, or reports "GIL not held", the fix is incomplete. Recheck Rules 1–4 against every lambda that touches `nb::object`.
+
+## Related Binding Gotchas
+
+Beyond the four core GIL rules, several runtime-level concerns affect binding correctness: the single-runtime constraint, `hpx::finalize`'s HPX-thread requirement, 64 KB HPX thread stacks, the `hpx::spinlock`/`hpx::mutex`/`std::mutex` pairing matrix, the parallel-on-Python-objects trap, and executor lifetime.
+
+For each of these with full context and rationale, see **`references/gil-edge-cases.md`**.
+
+## Additional Resources
+
+### Reference Files
+
+- **`references/gil-edge-cases.md`** — Single-runtime constraint, finalize-on-HPX-thread, stack size, spinlock/mutex pairing, parallel-on-Python-objects trap, executor lifetime, free-threaded Python 3.13 semantics

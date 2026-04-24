@@ -127,11 +127,7 @@ def compute(data, *, policy: str = "par") -> float:
     return raw_function_name(data, policy)
 ```
 
-Key principles:
-- Import from `_core` (the compiled module)
-- Add type hints, docstrings, and parameter validation
-- Expose a Pythonic API (keyword arguments, sensible defaults)
-- Raise `NotImplementedError` for unimplemented policies rather than crashing
+Import from `_core`, expose a Pythonic API (keyword arguments, sensible defaults), and raise `NotImplementedError` for unimplemented policies rather than crashing.
 
 ## Nanobind Type Mappings
 
@@ -164,17 +160,44 @@ nanobind_add_module(
 
 For new headers, create `src/new_feature.hpp` with the function declarations and include it in `src/bind.cpp`.
 
+## Validation Sequence After Adding a Binding
+
+After writing the C++ binding, header, `bind.cpp` registration, and updating `CMakeLists.txt`, verify correctness in this order — each step gates the next:
+
+```bash
+# 1. Rebuild the extension (fast, editable)
+pip install --no-build-isolation -ve .
+
+# 2. Confirm the compiled module exists and the new symbol is exposed
+python -c "from hpyx import _core; print(_core.new_function_name)"
+
+# 3. Smoke-test in an HPX runtime
+python -c "
+from hpyx.runtime import HPXRuntime
+from hpyx import _core
+with HPXRuntime():
+    print(_core.new_function_name(<test inputs>))
+"
+
+# 4. Run the associated test suite
+pixi run test tests/test_new_feature.py
+```
+
+If step 2 fails with `AttributeError`, the `m.def(...)` registration is missing or misspelled. If step 3 hangs or segfaults, revisit GIL management (see **gil-management** skill). If step 4 fails, check type conversions and policy handling.
+
 ## File Organization
 
 For the complete step-by-step scaffolding workflow and file checklist when adding a new binding, see the **add-binding** skill. The key files to create: C++ source + header in `src/`, register in `src/bind.cpp`, update `CMakeLists.txt`, Python wrapper in `src/hpyx/`, and tests in `tests/`.
 
 ## Common Pitfalls
 
-- **Missing GIL acquire**: Any C++ lambda that calls Python (`nb::callable`, accessing `nb::object`) MUST use `nb::gil_scoped_acquire`
-- **Missing GIL release**: Long-running pure C++ operations should release the GIL with `nb::gil_scoped_release` to allow other Python threads to run
-- **Forgetting FREE_THREADED**: The `nanobind_add_module` call must include `FREE_THREADED` for Python 3.13 free-threading
-- **Moving futures**: `hpx::future` is move-only — use `std::move()` when capturing in lambdas
-- **Header includes**: Always include the specific HPX header, not the catch-all `<hpx/hpx.hpp>` (slower compilation)
+- **Missing GIL acquire**: Any C++ lambda that calls Python (`nb::callable`, accessing `nb::object`) MUST use `nb::gil_scoped_acquire`. See the **gil-management** skill for full GIL rules.
+- **Missing GIL release**: Long-running pure C++ operations should release the GIL with `nb::gil_scoped_release`.
+- **Forgetting FREE_THREADED**: The `nanobind_add_module` call must include `FREE_THREADED` for Python 3.13 free-threading.
+- **Moving futures**: `hpx::future` is move-only — use `std::move()` when capturing in lambdas.
+- **Header includes**: Always include the specific HPX header, not the catch-all `<hpx/hpx.hpp>` (slower compilation).
+
+For HPX runtime semantics that affect bindings — `hpx::function` vs `std::function`, invalid future handling, `.get()` GIL behavior by launch policy, executor lifetime, policy-object thread-safety — see **`references/nanobind-api.md`** ("HPX Runtime Semantics in Bindings" section).
 
 ## Additional Resources
 

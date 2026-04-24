@@ -29,55 +29,130 @@ Checklist:
 
 ### Step 3: Create C++ Source
 
-Create `src/<feature_name>.cpp` with:
+Create `src/<feature_name>.cpp`. Concrete example for a `hpx::reduce` binding on a NumPy array:
 
 ```cpp
+// src/reduce.cpp
 #include <nanobind/nanobind.h>
-// Include appropriate HPX and Nanobind headers
+#include <nanobind/ndarray.h>
 #include <hpx/algorithm.hpp>
+#include <hpx/numeric.hpp>
+#include <hpx/execution.hpp>
+#include "reduce.hpp"
 
 namespace nb = nanobind;
 
-namespace <feature_name> {
+namespace reduce_binding {
 
-// Implementation following HPyX patterns:
-// - Pure C++ operations: no GIL management needed
-// - Python callbacks: use nb::gil_scoped_acquire
-// - Return futures: use hpx::launch::deferred pattern
+double reduce_sum(
+    nb::ndarray<nb::numpy, const double, nb::c_contig> input,
+    const std::string& policy)
+{
+    const double* data = input.data();
+    std::size_t size = input.size();
 
-} // namespace <feature_name>
+    // Pure C++ path — no GIL management needed; raw pointers only
+    if (policy == "seq") {
+        return hpx::reduce(hpx::execution::seq, data, data + size, 0.0);
+    } else if (policy == "par") {
+        return hpx::reduce(hpx::execution::par, data, data + size, 0.0);
+    }
+    throw std::invalid_argument("policy must be 'seq' or 'par'");
+}
+
+}  // namespace reduce_binding
 ```
 
-Create `src/<feature_name>.hpp` with declarations.
+Create `src/reduce.hpp` with the declaration:
+
+```cpp
+// src/reduce.hpp
+#pragma once
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+#include <string>
+
+namespace nb = nanobind;
+
+namespace reduce_binding {
+    double reduce_sum(
+        nb::ndarray<nb::numpy, const double, nb::c_contig> input,
+        const std::string& policy);
+}
+```
 
 ### Step 4: Register in bind.cpp
 
-Add to `src/bind.cpp`:
-1. `#include "<feature_name>.hpp"` at the top
-2. `m.def(...)` calls inside `NB_MODULE(_core, m)` block
+```cpp
+// At the top of src/bind.cpp:
+#include "reduce.hpp"
+
+// Inside NB_MODULE(_core, m):
+m.def("reduce_sum", &reduce_binding::reduce_sum,
+      "input"_a, "policy"_a = "par",
+      "Parallel reduction (sum) over a contiguous double array.\n\n"
+      "Parameters\n----------\n"
+      "input : numpy.ndarray[float64]\n    Contiguous 1D array.\n"
+      "policy : str\n    Execution policy: 'seq' or 'par'.");
+```
 
 ### Step 5: Update CMakeLists.txt
 
-Add `src/<feature_name>.cpp` to the `nanobind_add_module()` call. If the feature requires additional HPX components, add them to `target_link_libraries`.
+Add `src/reduce.cpp` to the `nanobind_add_module()` call. If the feature needs extra HPX components (e.g., `HPX::iostreams_component`), add them to `target_link_libraries`.
 
-**Validation checkpoint**: run `pixi run build` and verify `_core.so` compiles before proceeding to the Python wrapper.
+**Validation checkpoint**: run `pip install --no-build-isolation -ve .` and confirm `src/hpyx/_core.*.so` rebuilds without errors before proceeding.
 
 ### Step 6: Create Python Wrapper
 
-Create the Python package:
+Create the Python package `src/hpyx/reduce/` with:
 
-```
-src/hpyx/<feature_name>/
-├── __init__.py          # Re-exports the public API
-└── _<feature_name>.py   # Implementation with type hints and docstrings
+```python
+# src/hpyx/reduce/__init__.py
+from ._reduce import reduce_sum
+
+__all__ = ["reduce_sum"]
 ```
 
-The Python wrapper should:
-- Import from `hpyx._core`
-- Add type hints and NumPy-style docstrings
-- Validate inputs (raise clear Python exceptions)
-- Provide sensible defaults
-- Raise `NotImplementedError` for unimplemented execution policies
+```python
+# src/hpyx/reduce/_reduce.py
+from __future__ import annotations
+
+from typing import Literal
+
+import numpy as np
+import numpy.typing as npt
+
+from .._core import reduce_sum as _reduce_sum
+
+
+def reduce_sum(
+    data: npt.NDArray[np.float64],
+    *,
+    policy: Literal["seq", "par"] = "par",
+) -> float:
+    """Parallel sum reduction over a 1D float64 array.
+
+    Parameters
+    ----------
+    data
+        Contiguous 1D NumPy array of float64.
+    policy
+        Execution policy. ``"seq"`` runs sequentially;
+        ``"par"`` uses the HPX thread pool.
+
+    Returns
+    -------
+    float
+        The sum of all elements in ``data``.
+    """
+    if data.dtype != np.float64:
+        raise TypeError(f"data must be float64, got {data.dtype}")
+    if data.ndim != 1:
+        raise ValueError(f"data must be 1D, got {data.ndim}D")
+    if not data.flags.c_contiguous:
+        data = np.ascontiguousarray(data)
+    return _reduce_sum(data, policy)
+```
 
 ### Step 7: Export from Package
 
