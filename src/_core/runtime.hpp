@@ -1,17 +1,30 @@
-//  Copyright (c) 2017 Hartmut Kaiser
-//  Copyright (c) 2018 R. Tohid
-//  Copyright (c) 2018 Steven R. Brandt
-//
-//  Distributed under the Boost Software License, Version 1.0. (See accompanying
-//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+#pragma once
 
-#if !defined(HPYX_CORE_RUNTIME_HPP)
-#define HPYX_CORE_RUNTIME_HPP
-
-#include <vector>
+#include <nanobind/nanobind.h>
+#include <cstddef>
+#include <cstdint>
 #include <string>
+#include <vector>
 
-void init_hpx_runtime(std::vector<std::string> const &cfg);
-void stop_hpx_runtime();
+namespace hpyx::runtime {
 
-#endif
+// Thread-safe, idempotent. Returns true if this call started the runtime,
+// false if it was already running. Throws std::runtime_error if the runtime
+// was previously started and then stopped (HPX cannot restart in-process).
+bool runtime_start(std::vector<std::string> const& cfg);
+
+// Blocks until HPX drains. Idempotent — safe to call after a prior stop
+// (no-op in that case). Does NOT re-enable starting.
+void runtime_stop();
+
+bool runtime_is_running();
+
+std::size_t num_worker_threads();
+std::int64_t get_worker_thread_id();  // -1 if called from a non-HPX OS thread
+std::string hpx_version_string();
+
+// Called by _core's NB_MODULE macro to register all bindings in this file
+// on the `runtime` submodule.
+void register_bindings(nanobind::module_& m);
+
+}  // namespace hpyx::runtime

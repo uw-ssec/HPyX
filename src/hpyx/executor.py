@@ -80,16 +80,8 @@ class HPXExecutor(Executor):
         provided configuration. Only one HPXExecutor should be active
         at a time within a process.
         """
-        cfg = [
-            f"hpx.run_hpx_main!={int(run_hpx_main)}",
-            f"hpx.commandline.allow_unknown!={int(allow_unknown)}",
-            f"hpx.commandline.aliasing!={int(aliasing)}",
-            f"hpx.os_threads!={os_threads}",
-            f"hpx.diagnostics_on_terminate!={int(diagnostics_on_terminate)}",
-            f"hpx.parcel.tcp.enable!={int(tcp_enable)}",
-        ]
-
-        hpyx._core.init_hpx_runtime(cfg)
+        from hpyx import _runtime
+        _runtime.ensure_started(os_threads=os_threads)
 
     def submit(self: HPXExecutor, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
         """
@@ -144,4 +136,4 @@ class HPXExecutor(Executor):
         executor. The HPX runtime will be stopped and cannot be restarted
         within the same process.
         """
-        hpyx._core.stop_hpx_runtime()
+        return None
