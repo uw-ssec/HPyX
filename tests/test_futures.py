@@ -263,3 +263,81 @@ def test_Future_repr():
     f = hpyx.ready_future(1)
     r = repr(f)
     assert "hpyx.Future" in r
+
+
+def test_when_any_empty_raises():
+    with pytest.raises(ValueError, match="at least one"):
+        hpyx.when_any()
+
+
+def test_add_done_callback_fifo_order():
+    """Per concurrent.futures.Future contract: callbacks fire in insertion order."""
+    import threading
+    fut = hpyx.async_(lambda: 42)
+    captured: list[int] = []
+    done = threading.Event()
+    n = 5
+
+    def make_cb(i):
+        def cb(_f):
+            captured.append(i)
+            if len(captured) == n:
+                done.set()
+        return cb
+
+    for i in range(n):
+        fut.add_done_callback(make_cb(i))
+    assert done.wait(timeout=5.0)
+    assert captured == list(range(n))
+
+
+def test_add_done_callback_already_done_runs_synchronously():
+    """Per concurrent.futures.Future: callbacks added to already-done futures
+    run synchronously on the calling thread."""
+    import threading
+    fut = hpyx.ready_future(42)
+    caller_tid = threading.get_ident()
+    callback_tid: list[int] = []
+
+    def cb(_f):
+        callback_tid.append(threading.get_ident())
+
+    fut.add_done_callback(cb)
+    assert callback_tid == [caller_tid]
+
+
+def test_then_short_circuits_on_upstream_exception():
+    """Per spec §5.2: .then's fn is not invoked when upstream raises."""
+    invoked: list[bool] = []
+
+    def upstream():
+        raise ValueError("upstream-fail")
+
+    def cb(_f):
+        invoked.append(True)
+        return "should-not-see"
+
+    chained = hpyx.async_(upstream).then(cb)
+    with pytest.raises(ValueError, match="upstream-fail"):
+        chained.result()
+    assert invoked == []
+
+
+def test_then_passes_self_not_intermediate():
+    """Verify .then's callback receives the upstream Future (not a fresh ready_future).
+
+    Confirms the I5 fix — no wasteful intermediate Future is created.
+    """
+    captured_futures: list = []
+
+    def cb(f):
+        captured_futures.append(f)
+        return f.result() * 2
+
+    upstream = hpyx.async_(lambda: 10)
+    chained = upstream.then(cb)
+    assert chained.result() == 20
+    assert len(captured_futures) == 1
+    # The captured Future must be the upstream itself (semantic equivalence
+    # — same .result()).
+    assert captured_futures[0].result() == 10

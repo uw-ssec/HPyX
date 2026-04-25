@@ -28,6 +28,8 @@ def when_all(*futures: Future) -> Future:
 
 def when_any(*futures: Future) -> Future:
     """Return a Future that resolves to ``(index, futures_list)`` when any input completes."""
+    if not futures:
+        raise ValueError("when_any requires at least one input")
     _runtime.ensure_started()
     raws = [f._hpx for f in futures]
     inner = _core.futures.when_any(raws)

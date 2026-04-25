@@ -11,6 +11,7 @@ The wrapper is thin — most methods delegate directly to the C++ object.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, Callable, Optional
 
 from hpyx import _core
@@ -28,10 +29,13 @@ class Future:
     every Future wraps an ``hpx::shared_future``.
     """
 
-    __slots__ = ("_hpx",)
+    __slots__ = ("_hpx", "_callbacks", "_callback_lock", "_callbacks_registered")
 
     def __init__(self, hpx_fut: "_core.futures.HPXFuture") -> None:
         self._hpx = hpx_fut
+        self._callbacks: list[Callable[["Future"], None]] | None = None
+        self._callback_lock = threading.Lock()
+        self._callbacks_registered = False
 
     # ---- concurrent.futures.Future protocol ----
 
@@ -54,28 +58,58 @@ class Future:
         return self._hpx.cancel()
 
     def add_done_callback(self, fn: Callable[["Future"], None]) -> None:
-        # Wrap so the callback receives the Python Future, not the raw HPXFuture.
-        # Match concurrent.futures.Future: swallow callback errors and log.
-        outer = self
-
-        def _wrapper(_hpx_fut: "_core.futures.HPXFuture") -> None:
+        # Per concurrent.futures.Future contract:
+        #   - callbacks fire in insertion order (FIFO)
+        #   - callbacks added to already-done futures run synchronously on
+        #     the calling thread
+        #   - exceptions raised in callbacks are logged and swallowed
+        #
+        # The HPX C++ side makes no FIFO guarantee across multiple
+        # ``add_done_callback`` registrations, so we register exactly ONE
+        # C++ callback that drains a Python-side ``list[Callable]``. The
+        # first call sets up the drain; subsequent calls just append.
+        if self.done():
             try:
-                fn(outer)
+                fn(self)
             except BaseException:
                 logging.getLogger("hpyx.futures").exception(
                     "exception in Future.add_done_callback"
                 )
+            return
+        with self._callback_lock:
+            if self._callbacks is None:
+                self._callbacks = []
+            self._callbacks.append(fn)
+            if not self._callbacks_registered:
+                self._callbacks_registered = True
+                outer = self
 
-        self._hpx.add_done_callback(_wrapper)
+                def _drain(_hpx_fut: "_core.futures.HPXFuture") -> None:
+                    with outer._callback_lock:
+                        cbs = outer._callbacks or []
+                        outer._callbacks = None
+                    log = logging.getLogger("hpyx.futures")
+                    for cb in cbs:
+                        try:
+                            cb(outer)
+                        except BaseException:
+                            log.exception(
+                                "exception in Future.add_done_callback"
+                            )
+
+                self._hpx.add_done_callback(_drain)
 
     # ---- HPX-native ----
 
     def then(self, fn: Callable[["Future"], Any]) -> "Future":
-        # Per spec §4.4: callback receives the resolved Future (so the user
-        # can call .result() / .exception() and dispatch on success/failure).
-        def _shim(value: Any) -> Any:
-            ready = Future(_core.futures.ready_future(value))
-            return fn(ready)
+        # Per spec §4.4: callback receives the resolved Future. If the upstream
+        # future raised, ``fn`` is NOT invoked — the exception propagates through
+        # the chain unchanged (matches dataflow / when_all short-circuit behavior).
+        # Use ``add_done_callback`` if you need to handle both success and failure.
+        captured_self = self
+
+        def _shim(_value: Any) -> Any:
+            return fn(captured_self)
 
         return Future(self._hpx.then(_shim))
 
