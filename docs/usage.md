@@ -27,14 +27,14 @@ HPyX provides a clean Python interface to HPX's parallel computing capabilities.
 - `HPXRuntime` — optional context manager for explicit scoping
 - `hpyx.config` — environment-variable-driven configuration
 - `hpyx.debug` — worker thread diagnostics
-- `hpyx.futures.submit` — submit functions for asynchronous execution
+- `hpyx.async_` / `hpyx.Future` — submit functions for asynchronous execution
+- `hpyx.when_all` / `hpyx.when_any` / `hpyx.dataflow` / `hpyx.shared_future` / `hpyx.ready_future` — future composition
 - `hpyx.multiprocessing.for_loop` — parallel iteration over collections
 
 ### Basic Import
 
 ```python
 import hpyx
-from hpyx.futures import submit
 from hpyx.multiprocessing import for_loop
 ```
 
@@ -194,39 +194,46 @@ print(debug.get_worker_thread_id())    # -1 (called from main Python thread)
 
 ## Asynchronous Programming with Futures
 
-HPyX provides futures-based asynchronous programming through the `submit` function, which allows you to execute functions asynchronously and retrieve results later.
+HPyX provides futures-based asynchronous programming through the top-level `hpyx.async_` function, which submits a callable to an HPX worker thread and returns a `hpyx.Future` for its result.
+
+!!! info "v1 API change"
+    `hpyx.async_` and `hpyx.Future` replace the v0.x `hpyx.futures.submit` shim.
+    The new API conforms to the `concurrent.futures.Future` protocol so it
+    integrates with `asyncio`, `dask`, and any code that already targets the
+    stdlib. See [The Pythonic `hpyx.Future` wrapper](#the-pythonic-hpyxfuture-wrapper)
+    below for the full reference.
 
 ### Basic Future Usage
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def add(a, b):
     return a + b
 
-# Runtime auto-initializes on first submit
-future = submit(add, 5, 3)
-result = future.get()
+# Runtime auto-initializes on first call
+future = hpyx.async_(add, 5, 3)
+result = future.result()
 print(f"5 + 3 = {result}")  # Output: 5 + 3 = 8
 ```
 
 ### Multiple Futures
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def square(x):
     return x * x
 
-futures = [submit(square, i) for i in range(5)]
-results = [f.get() for f in futures]
+futures = [hpyx.async_(square, i) for i in range(5)]
+results = [f.result() for f in futures]
 print(f"Squares: {results}")  # Output: Squares: [0, 1, 4, 9, 16]
 ```
 
 ### Complex Data Types
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def process_data(data_dict):
     return {
@@ -236,8 +243,8 @@ def process_data(data_dict):
     }
 
 input_data = {'values': [1, 2, 3, 4, 5]}
-future = submit(process_data, input_data)
-result = future.get()
+future = hpyx.async_(process_data, input_data)
+result = future.result()
 print(f"Statistics: {result}")
 # Output: Statistics: {'sum': 15, 'count': 5, 'avg': 3.0}
 ```
@@ -245,10 +252,10 @@ print(f"Statistics: {result}")
 ### Lambda Functions
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
-future = submit(lambda x: x ** 2 + 2 * x + 1, 5)
-print(future.get())  # 36
+future = hpyx.async_(lambda x: x ** 2 + 2 * x + 1, 5)
+print(future.result())  # 36
 ```
 
 ### Combinators (`when_all`, `when_any`, `dataflow`, `shared_future`)
@@ -404,6 +411,139 @@ print(stage2.result())   # 60
 For multi-input dependencies where the downstream takes the *unpacked* values,
 prefer `dataflow` over `when_all().result()` so the downstream invocation runs
 on an HPX worker rather than the calling thread.
+
+### The Pythonic `hpyx.Future` wrapper
+
+The `hpyx._core.futures` API shown above operates on `HPXFuture` (the raw nanobind class). For most user code, prefer the higher-level `hpyx.Future` wrapper exposed at the package root:
+
+```python
+import hpyx
+
+fut = hpyx.async_(lambda x, y: x + y, 2, 3)
+print(fut.result())          # 5
+print(isinstance(fut, hpyx.Future))  # True
+```
+
+`hpyx.Future` conforms to the [`concurrent.futures.Future`](https://docs.python.org/3/library/concurrent.futures.html#future-objects) protocol, so it Just Works with `asyncio.wrap_future`, `loop.run_in_executor`, and any library that takes a stdlib Future (including dask).
+
+#### Public API surface
+
+| Name | Returns | Purpose |
+|------|---------|---------|
+| `hpyx.async_(fn, *args, **kwargs)` | `Future` | Submit a callable to an HPX worker thread |
+| `hpyx.ready_future(value)` | `Future` | An already-completed Future wrapping `value` |
+| `hpyx.when_all(*futures)` | `Future` | Resolves to a tuple of all input results |
+| `hpyx.when_any(*futures)` | `Future` | Resolves to `(index, [Future, ...])` when any input completes |
+| `hpyx.dataflow(fn, *futures, **kwargs)` | `Future` | Calls `fn(*resolved_values, **kwargs)` once all inputs complete |
+| `hpyx.shared_future(f)` | `Future` | Returns a sharable view (HPXFuture is already shared) |
+
+#### `Future` methods
+
+```python
+fut.result(timeout=None)         # block, raise if upstream raised
+fut.exception(timeout=None)      # block, return exception or None
+fut.done()                       # True if completed (success or failure)
+fut.running()                    # True if started but not done
+fut.cancelled()                  # True if cancel() returned True before start
+fut.cancel()                     # only succeeds before the task starts
+fut.add_done_callback(fn)        # FIFO; runs synchronously if already done
+fut.then(fn)                     # callback receives the resolved Future
+fut.share()                      # return a shareable view
+await fut                        # asyncio bridge (lands in a follow-up task)
+```
+
+#### Submitting work
+
+```python
+import hpyx
+
+# Positional and keyword args are both supported
+def worker(a, b, *, scale=1):
+    return (a + b) * scale
+
+fut = hpyx.async_(worker, 1, 2, scale=10)
+print(fut.result())  # 30
+```
+
+#### Combinators with the Pythonic wrapper
+
+```python
+import hpyx
+
+f1 = hpyx.async_(lambda: 1)
+f2 = hpyx.async_(lambda: 2)
+f3 = hpyx.async_(lambda: 3)
+
+# Tuple-of-results
+print(hpyx.when_all(f1, f2, f3).result())   # (1, 2, 3)
+
+# First completer
+idx, futs = hpyx.when_any(f1, f2, f3).result()
+print(f"future #{idx} resolved first → {futs[idx].result()}")
+
+# Dataflow: combine resolved values into a downstream callable
+def combine(a, b, c, *, scale=1):
+    return (a + b + c) * scale
+
+print(hpyx.dataflow(combine, f1, f2, f3, scale=10).result())  # 60
+```
+
+!!! note "Differences from the C++ surface"
+    - `hpyx.when_any(...)` returns `(idx, [Future, ...])` (Python wrappers), while
+      `core_futures.when_any(...)` returns `(idx, [HPXFuture, ...])`.
+    - `hpyx.dataflow(fn, *futures, **kwargs)` accepts kwargs as actual Python
+      keyword arguments. The C++ `core_futures.dataflow(fn, inputs, kwargs)`
+      takes them as a positional dict.
+    - `hpyx.when_any()` with no inputs raises `ValueError`. The C++ form would
+      hang. `hpyx.when_all()` with no inputs returns a Future for `()`.
+
+#### Adding done callbacks
+
+`add_done_callback` matches stdlib semantics:
+
+- Callbacks fire in the order they were registered (FIFO).
+- A callback added to a Future that is already done runs synchronously on the calling thread.
+- Exceptions raised inside callbacks are caught and logged via the `hpyx.futures` logger; they do not propagate.
+
+```python
+import hpyx, logging
+
+logging.getLogger("hpyx.futures").addHandler(logging.StreamHandler())
+
+fut = hpyx.async_(lambda: 42)
+fut.add_done_callback(lambda f: print(f"got {f.result()}"))
+fut.result()  # blocks; "got 42" prints once the callback fires
+```
+
+#### Chaining with `.then`
+
+`fut.then(fn)` schedules `fn(resolved_future)` on an HPX worker once `fut`
+completes successfully. **If `fut` raises, `fn` is not invoked** — the
+exception propagates through the chain unchanged. Use
+`add_done_callback` if you need to handle both success and failure
+in one place.
+
+```python
+import hpyx
+
+result = (
+    hpyx.async_(lambda: 10)
+    .then(lambda f: f.result() * 2)   # 20
+    .then(lambda f: f.result() + 1)   # 21
+)
+print(result.result())  # 21
+```
+
+#### Composition diagram
+
+```mermaid
+graph LR
+    A[hpyx.async_ fn1] --> WA[hpyx.when_all]
+    B[hpyx.async_ fn2] --> WA
+    C[hpyx.async_ fn3] --> WA
+    WA -->|tuple of results| DF[hpyx.dataflow combiner]
+    DF --> RES[final hpyx.Future]
+```
 
 ## Parallel Processing with for_loop
 

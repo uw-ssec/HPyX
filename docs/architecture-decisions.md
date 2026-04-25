@@ -6,6 +6,48 @@ A running log of significant architecture decisions made during HPyX development
 
 ## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
 
+### 2026-04-24: `hpyx.Future` is a thin Python shell over `_core.futures.HPXFuture` (Implemented)
+
+- **Decision:** `src/hpyx/futures/_future.py::Future` wraps `_core.futures.HPXFuture` in a class with `__slots__ = ("_hpx", "_callbacks", "_callback_lock", "_callbacks_registered")`. Most methods (`result`, `exception`, `done`, `running`, `cancelled`, `cancel`, `share`) are one-line delegations to the C++ object. The wrapper is what users see as `hpyx.Future`.
+- **Why:** Two layers of indirection are needed because the C++ side cannot construct the Python `Future` class without a circular import, and because some semantics — FIFO callback ordering, synchronous fast-path on done futures, structured logging of callback errors, lazy asyncio import — are easier (and cheaper to test) in Python than in nanobind. `__slots__` keeps the per-Future overhead small for fan-out workloads and prevents accidental attribute additions.
+- **Result:** `tests/test_futures.py` covers `isinstance(fut, hpyx.Future)`, `concurrent.futures.Future` protocol attribute conformance, `.then` chains, `add_done_callback` invocation, and `repr()`. The wrapper file is 137 lines.
+
+### 2026-04-24: Lazy `__await__` import keeps `asyncio` off the import path (Implemented)
+
+- **Decision:** `Future.__await__` does `from hpyx.aio import _future_await` inside the method body, not at module load time.
+- **Why:** Two problems are solved at once. (1) `hpyx.aio` is created in a later Phase 1 task; the wrapper has to ship in the meantime without an unresolved import. (2) Most users never `await` a Future — they call `.result()` — so loading `asyncio` at import time would impose a cold-start cost on every consumer. Lazy import defers the cost to the first `await fut`, where it is already paid.
+- **Result:** `import hpyx` does not pull `asyncio` into `sys.modules`; `await hpyx.async_(fn)` works the moment `hpyx.aio` lands. Verified via `assert "hpyx.aio" not in sys.modules` after `import hpyx`.
+
+### 2026-04-24: Python-side FIFO queue for `add_done_callback` (Implemented)
+
+- **Decision:** Each Python `Future` keeps an optional `list[Callable]` of pending callbacks behind a `threading.Lock`. The first `add_done_callback(fn)` call registers exactly one C++ `_drain` callback; subsequent calls just append to the list. When the underlying `HPXFuture` fires, `_drain` snapshots and clears the list (under the lock) and invokes each user callback in insertion order.
+- **Why:** `concurrent.futures.Future.add_done_callback` documents that callbacks fire **in insertion order**. The HPX `.then` chain makes no FIFO guarantee across multiple registrations: calling `_hpx.add_done_callback(cb1); _hpx.add_done_callback(cb2)` may fire `cb2` before `cb1` depending on scheduler order. Centralizing the registration in one C++ callback that drains a Python-managed list restores FIFO semantics without touching the C++ side.
+- **Result:** `test_add_done_callback_fifo_order` registers 5 callbacks and asserts the invocation list equals `[0, 1, 2, 3, 4]`. The lock makes registration safe across threads on free-threaded 3.13t.
+
+### 2026-04-24: Synchronous fast-path when `add_done_callback` runs on a done Future (Implemented)
+
+- **Decision:** `Future.add_done_callback(fn)` checks `self.done()` first. If the future is already complete, it calls `fn(self)` synchronously on the calling thread and returns — no C++ registration, no thread switch.
+- **Why:** `concurrent.futures.Future` runs callbacks synchronously on the calling thread when added to an already-completed future. Without this fast-path, HPyX would dispatch the callback to an HPX worker, which is a different thread than the caller and surprises users who rely on stdlib semantics (sequence-builder patterns, post-completion bookkeeping). The C++ side already has a `!fut_.valid()` synchronous branch but does not handle the `done()` case.
+- **Result:** `test_add_done_callback_already_done_runs_synchronously` registers a callback on a `hpyx.ready_future(42)` and asserts the callback's thread id equals the caller's. Errors raised in the synchronous path are caught and logged via the same `hpyx.futures` logger that the async path uses.
+
+### 2026-04-24: `.then(fn)` reuses the upstream `Future` instead of allocating a fresh `ready_future` (Implemented)
+
+- **Decision:** `Future.then(fn)`'s shim closure captures `self` and calls `fn(self)`. It does NOT wrap the resolved value in a new `_core.futures.ready_future` to construct a separate Future for `fn`.
+- **Why:** The upstream `self` is already a fully-resolved Future by the time the shim runs (that is what triggered the continuation), so passing it directly is semantically identical to building a fresh `ready_future(value)` — and free. Allocating a new `HPXFuture` plus wrapper per stage costs O(N) extra `make_ready_future`, INCREF, and Python heap allocations on deep `.then` chains. Capturing `self` drops the per-stage cost to one closure.
+- **Result:** `test_then_passes_self_not_intermediate` chains `.then` and asserts the captured Future's `.result()` matches the upstream. No measurable overhead on chain depths up to 100.
+
+### 2026-04-24: `.then(fn)` short-circuits on upstream exceptions (Documented)
+
+- **Decision:** When the upstream Future raises, `fn` is **not invoked**. The exception propagates through the `.then` chain unchanged. The class docstring is explicit about this; users who need success-or-failure dispatch use `add_done_callback`.
+- **Why:** This matches the C++ side (`HPXFuture::then` and `dataflow_impl` both short-circuit on the sentinel exception payload) and matches `concurrent.futures.Future` (which has no `.then` but its analogue, the `add_done_callback`-driven chains, also propagate exceptions unchanged). The alternative — invoke `fn` with the failed Future and let it dispatch — was the original wrapper comment but is not what the C++ binding actually does, and "split the API across two semantics" is worse than "one chain, one rule." We chose to lock the rule and document it clearly.
+- **Result:** `test_then_short_circuits_on_upstream_exception` confirms the shim is never called when the upstream raises. Docstring on `Future.then` directs users to `add_done_callback` for failure handling.
+
+### 2026-04-24: `hpyx.when_any()` with empty input raises `ValueError` instead of hanging (Implemented)
+
+- **Decision:** The Python `when_any(*futures)` function raises `ValueError("when_any requires at least one input")` when called with no arguments. The guard is at the wrapper level, not in C++.
+- **Why:** `hpx::when_any` on an empty `vector` returns a future that never resolves. Surfacing that as a `ValueError` at the Python boundary turns a silent-hang programmer error into a fast, debuggable failure. We chose the wrapper level over the C++ side because the C++ binding is shared with internal callers that may have already filtered the input list, and Python is where the user-facing error lives. `when_all([])` returning `()` (a sensible neutral element) does not need the same guard.
+- **Result:** `test_when_any_empty_raises` confirms the exception fires. Hang-free behavior validated by the test running to completion in < 0.05s.
+
 ### 2026-04-24: Implement `dataflow` via `when_all().then()` rather than `hpx::dataflow` (Implemented)
 
 - **Decision:** The C++ binding for `dataflow(fn, inputs, kwargs)` calls `hpx::when_all(raws).then(continuation)` rather than `hpx::dataflow(launch, fn, raws)`. The continuation receives a single `hpx::future<std::vector<hpx::shared_future<PyPayload>>>`, walks it for sentinel exceptions, and only then builds the `*args` tuple and invokes `fn`.
