@@ -2,11 +2,14 @@
 #include "runtime.hpp"
 
 #include <hpx/async.hpp>
+#include <hpx/async_combinators/when_all.hpp>
+#include <hpx/async_combinators/when_any.hpp>
 #include <hpx/future.hpp>
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 
 // Python.h must come last to avoid macro conflicts with HPX/Boost.
 #define PY_SSIZE_T_CLEAN
@@ -325,6 +328,206 @@ HPXFuture ready_future(nb::object value) {
     return HPXFuture(std::move(fut));
 }
 
+// ---- Composition helpers (when_all / when_any / dataflow / shared_future) ----
+
+// Extract the underlying shared_futures from a vector of HPXFuture wrappers.
+std::vector<hpx::shared_future<PyPayload>> extract_raw(
+    std::vector<HPXFuture> const& inputs) {
+    std::vector<hpx::shared_future<PyPayload>> out;
+    out.reserve(inputs.size());
+    for (auto const& f : inputs) out.push_back(f.raw());
+    return out;
+}
+
+HPXFuture when_all_impl(std::vector<HPXFuture> inputs) {
+    auto raws = extract_raw(inputs);
+    auto fut = hpx::when_all(std::move(raws)).then(
+        [](hpx::future<std::vector<hpx::shared_future<PyPayload>>> f)
+            -> PyPayload {
+            auto vec = f.get();
+            PyGILState_STATE gs = PyGILState_Ensure();
+            PyPayload result;
+            try {
+                // Per spec §5.2: first-to-fail wins. Surface the first
+                // upstream sentinel without aggregating siblings.
+                for (auto const& sf : vec) {
+                    PyPayload const& p = sf.get();
+                    PyObject* raw = p ? p.get() : nullptr;
+                    if (is_exc_sentinel(raw)) {
+                        result = p;
+                        PyGILState_Release(gs);
+                        return result;
+                    }
+                }
+                PyObject* tup =
+                    PyTuple_New(static_cast<Py_ssize_t>(vec.size()));
+                if (!tup) {
+                    result = box_current_exception();
+                    PyGILState_Release(gs);
+                    return result;
+                }
+                for (std::size_t i = 0; i < vec.size(); ++i) {
+                    PyPayload const& p = vec[i].get();
+                    PyObject* raw = p ? p.get() : Py_None;
+                    Py_INCREF(raw);
+                    PyTuple_SET_ITEM(tup, static_cast<Py_ssize_t>(i), raw);
+                }
+                result = steal_to_payload(tup);
+            } catch (nb::python_error& e) {
+                e.restore();
+                result = box_current_exception();
+            } catch (std::exception& e) {
+                PyErr_SetString(PyExc_RuntimeError, e.what());
+                result = box_current_exception();
+            } catch (...) {
+                PyErr_SetString(PyExc_RuntimeError,
+                                "unknown C++ exception in when_all");
+                result = box_current_exception();
+            }
+            PyGILState_Release(gs);
+            return result;
+        }).share();
+    return HPXFuture(std::move(fut));
+}
+
+HPXFuture when_any_impl(std::vector<HPXFuture> inputs) {
+    auto raws = extract_raw(inputs);
+    // Capture the original wrappers so we can return them in the result tuple.
+    auto captured =
+        std::make_shared<std::vector<HPXFuture>>(std::move(inputs));
+    auto fut = hpx::when_any(std::move(raws)).then(
+        [captured](hpx::future<hpx::when_any_result<
+                       std::vector<hpx::shared_future<PyPayload>>>> f)
+            -> PyPayload {
+            auto wa = f.get();
+            std::size_t idx = wa.index;
+            PyGILState_STATE gs = PyGILState_Ensure();
+            PyPayload result;
+            try {
+                PyObject* lst =
+                    PyList_New(static_cast<Py_ssize_t>(captured->size()));
+                if (!lst) {
+                    result = box_current_exception();
+                    PyGILState_Release(gs);
+                    return result;
+                }
+                for (std::size_t i = 0; i < captured->size(); ++i) {
+                    nb::object obj = nb::cast((*captured)[i]);
+                    PyObject* ptr = obj.ptr();
+                    Py_INCREF(ptr);
+                    PyList_SET_ITEM(lst, static_cast<Py_ssize_t>(i), ptr);
+                }
+                PyObject* idx_obj = PyLong_FromSize_t(idx);
+                if (!idx_obj) {
+                    Py_DECREF(lst);
+                    result = box_current_exception();
+                    PyGILState_Release(gs);
+                    return result;
+                }
+                PyObject* tup = PyTuple_New(2);
+                if (!tup) {
+                    Py_DECREF(idx_obj);
+                    Py_DECREF(lst);
+                    result = box_current_exception();
+                    PyGILState_Release(gs);
+                    return result;
+                }
+                PyTuple_SET_ITEM(tup, 0, idx_obj);  // steals
+                PyTuple_SET_ITEM(tup, 1, lst);      // steals
+                result = steal_to_payload(tup);
+            } catch (nb::python_error& e) {
+                e.restore();
+                result = box_current_exception();
+            } catch (std::exception& e) {
+                PyErr_SetString(PyExc_RuntimeError, e.what());
+                result = box_current_exception();
+            } catch (...) {
+                PyErr_SetString(PyExc_RuntimeError,
+                                "unknown C++ exception in when_any");
+                result = box_current_exception();
+            }
+            PyGILState_Release(gs);
+            return result;
+        }).share();
+    return HPXFuture(std::move(fut));
+}
+
+HPXFuture dataflow_impl(nb::callable fn,
+                        std::vector<HPXFuture> inputs,
+                        nb::handle kwargs) {
+    if (!hpyx::runtime::runtime_is_running())
+        throw std::runtime_error(
+            "HPyX runtime is not running. Call hpyx.init() first.");
+    if (!PyDict_Check(kwargs.ptr()))
+        throw std::runtime_error("dataflow: kwargs must be a dict");
+    auto raws = extract_raw(inputs);
+    Py_INCREF(fn.ptr());
+    Py_INCREF(kwargs.ptr());
+    auto safe_fn = std::shared_ptr<PyObject>(fn.ptr(), GILDecref{});
+    auto safe_kw = std::shared_ptr<PyObject>(kwargs.ptr(), GILDecref{});
+    auto fut = hpx::when_all(std::move(raws)).then(
+        [safe_fn, safe_kw](
+            hpx::future<std::vector<hpx::shared_future<PyPayload>>> f)
+            -> PyPayload {
+            auto vec = f.get();
+            PyGILState_STATE gs = PyGILState_Ensure();
+            PyPayload result;
+            try {
+                // Propagate first upstream exception without invoking fn.
+                for (auto const& sf : vec) {
+                    PyPayload const& p = sf.get();
+                    PyObject* raw = p ? p.get() : nullptr;
+                    if (is_exc_sentinel(raw)) {
+                        result = p;
+                        PyGILState_Release(gs);
+                        return result;
+                    }
+                }
+                PyObject* args =
+                    PyTuple_New(static_cast<Py_ssize_t>(vec.size()));
+                if (!args) {
+                    result = box_current_exception();
+                    PyGILState_Release(gs);
+                    return result;
+                }
+                for (std::size_t i = 0; i < vec.size(); ++i) {
+                    PyPayload const& p = vec[i].get();
+                    PyObject* raw = p ? p.get() : Py_None;
+                    Py_INCREF(raw);
+                    PyTuple_SET_ITEM(args, static_cast<Py_ssize_t>(i), raw);
+                }
+                PyObject* raw =
+                    PyObject_Call(safe_fn.get(), args, safe_kw.get());
+                Py_DECREF(args);
+                if (!raw) {
+                    result = box_current_exception();
+                } else {
+                    result = steal_to_payload(raw);
+                }
+            } catch (nb::python_error& e) {
+                e.restore();
+                result = box_current_exception();
+            } catch (std::exception& e) {
+                PyErr_SetString(PyExc_RuntimeError, e.what());
+                result = box_current_exception();
+            } catch (...) {
+                PyErr_SetString(PyExc_RuntimeError,
+                                "unknown C++ exception in dataflow");
+                result = box_current_exception();
+            }
+            PyGILState_Release(gs);
+            return result;
+        }).share();
+    return HPXFuture(std::move(fut));
+}
+
+HPXFuture shared_future_impl(HPXFuture input) {
+    // No-op: HPXFuture already wraps hpx::shared_future. Returning .share()
+    // yields a wrapper over the same underlying shared state, which is what
+    // the spec contract calls for.
+    return input.share();
+}
+
 }  // namespace
 
 void register_bindings(nb::module_& m) {
@@ -349,6 +552,19 @@ void register_bindings(nb::module_& m) {
           "Submit a callable to HPX; return a Future for its result.");
     m.def("ready_future", &ready_future, "value"_a,
           "Return an already-completed future wrapping `value`.");
+    m.def("when_all", &when_all_impl, "inputs"_a,
+          "Return a future whose result is a tuple of all input results "
+          "in input order. First-to-fail wins per spec §5.2.");
+    m.def("when_any", &when_any_impl, "inputs"_a,
+          "Return a future whose result is (index, [HPXFuture, ...]) where "
+          "`index` is the position of the first completed input.");
+    m.def("dataflow", &dataflow_impl,
+          "fn"_a, "inputs"_a, "kwargs"_a = nb::dict(),
+          "Wait for all inputs, then call fn(*results, **kwargs) on an HPX "
+          "worker. Upstream exceptions short-circuit fn.");
+    m.def("shared_future", &shared_future_impl, "future"_a,
+          "Return a shared-future view of `future`. HPXFuture is already "
+          "shared internally, so this is effectively a no-op pass-through.");
 }
 
 }  // namespace hpyx::futures
