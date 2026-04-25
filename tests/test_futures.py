@@ -187,3 +187,79 @@ def test_shared_future_can_be_consumed_twice():
     s = core_futures.shared_future(fut)
     assert s.result() == "hello"
     assert s.result() == "hello"
+
+
+# ---- Python Future wrapper (hpyx.Future, hpyx.async_) ----
+
+def test_async_returns_hpyx_Future():
+    fut = hpyx.async_(lambda: 42)
+    assert isinstance(fut, hpyx.Future)
+    assert fut.result() == 42
+
+
+def test_Future_concurrent_futures_protocol():
+    import concurrent.futures
+    fut = hpyx.async_(lambda: "hi")
+    for method in ("result", "exception", "done", "running", "cancelled",
+                   "cancel", "add_done_callback"):
+        assert callable(getattr(fut, method))
+    assert fut.result() == "hi"
+
+
+def test_Future_then_chain():
+    fut = hpyx.async_(lambda: 10).then(lambda f: f.result() * 2).then(lambda f: f.result() + 1)
+    assert fut.result() == 21
+
+
+def test_when_all_free_function():
+    f1 = hpyx.async_(lambda: 1)
+    f2 = hpyx.async_(lambda: 2)
+    assert hpyx.when_all(f1, f2).result() == (1, 2)
+
+
+def test_dataflow_free_function():
+    f1 = hpyx.async_(lambda: 3)
+    f2 = hpyx.async_(lambda: 4)
+    out = hpyx.dataflow(lambda a, b: a * b, f1, f2)
+    assert out.result() == 12
+
+
+def test_shared_future_is_idempotent():
+    f = hpyx.async_(lambda: 99)
+    s = hpyx.shared_future(f)
+    assert s.result() == 99
+    assert s.result() == 99  # can call twice
+
+
+def test_ready_future_is_immediately_done():
+    f = hpyx.ready_future(7)
+    assert f.done()
+    assert f.result() == 7
+
+
+def test_async_with_args_and_kwargs():
+    def worker(a, b, *, c=0):
+        return a + b + c
+    fut = hpyx.async_(worker, 1, 2, c=10)
+    assert fut.result() == 13
+
+
+def test_Future_add_done_callback_invokes():
+    import threading
+    called = threading.Event()
+    captured = []
+
+    def cb(fut):
+        captured.append(fut.result())
+        called.set()
+
+    f = hpyx.async_(lambda: 42)
+    f.add_done_callback(cb)
+    assert called.wait(timeout=5.0)
+    assert captured == [42]
+
+
+def test_Future_repr():
+    f = hpyx.ready_future(1)
+    r = repr(f)
+    assert "hpyx.Future" in r
