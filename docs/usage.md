@@ -125,6 +125,7 @@ HPyX reads configuration from environment variables at runtime startup. These ta
 | `HPYX_CFG` | str | `""` | Semicolon-separated HPX config strings |
 | `HPYX_AUTOINIT` | bool | `true` | Set to `0`/`false` to disable auto-init |
 | `HPYX_TRACE_PATH` | str | `None` | Path for JSONL trace output (v1.x) |
+| `HPYX_ASYNC_MODE` | str | `"async"` | `"async"` (default) or `"deferred"` — emergency rollback to v0.x `hpx::launch::deferred` semantics |
 
 **Precedence:** explicit `hpyx.init()` kwargs > environment variables > built-in defaults.
 

@@ -4,6 +4,46 @@ A running log of significant architecture decisions made during HPyX development
 
 ---
 
+## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
+
+### 2026-04-24: Store `shared_ptr<PyObject>` (PyPayload) in the future state, not `nb::object` (Implemented)
+
+- **Decision:** The HPX future state holds `PyPayload = std::shared_ptr<PyObject>` with a custom GIL-acquiring deleter (`GILDecref`) instead of `nb::object`. `HPXFuture` wraps `hpx::shared_future<PyPayload>`.
+- **Why:** `nb::object`'s destructor calls `Py_DECREF` unconditionally. HPX may copy/move the future state on a worker thread that does not hold the GIL (during scheduling, when continuations fire, when shared states are reaped). A bare `nb::object` decrementing without the GIL races with the interpreter and corrupts refcounts. `shared_ptr<PyObject>` is GIL-safe at every point: the control block uses atomic counters (no GIL needed for copy/move), and the deleter does `PyGILState_Ensure()` → `Py_DECREF` → `PyGILState_Release()` so the actual reference release always happens with the GIL held.
+- **Result:** `tests/test_futures.py` covers `async_submit` running on an HPX worker, exception preservation, and the `exception()` method — all five pass. The pattern carries over to `then()` continuations and `add_done_callback` for the same reason.
+
+### 2026-04-24: Box Python exceptions in a sentinel tuple, not `std::exception_ptr` (Implemented)
+
+- **Decision:** When the user's callable raises, the lambda catches `nb::python_error`, calls `PyErr_Fetch` / `PyErr_NormalizeException`, and packs the result into a 4-tuple sentinel `("__hpyx_exc__", exc_type, exc_value, exc_tb)` stored as a `PyPayload`. `result()` and `exception()` detect the sentinel via `is_exc_sentinel()` and re-raise via `PyErr_SetRaisedException` (Python 3.12+).
+- **Why:** `nb::python_error` carries `PyObject*` references that are GIL-thread-local. Letting it propagate through `std::exception_ptr` is unsafe — HPX may rethrow it on a different thread that has no Python interpreter state attached, crashing the process. Boxing the exception into a `PyPayload` while the original GIL is still held captures owned references that can travel through HPX's machinery and be unboxed on the consumer thread.
+- **Result:** `pytest.raises(ValueError, match="boom")` works correctly through `fut.result()`, and `fut.exception()` returns the original Python exception value with its traceback intact.
+
+### 2026-04-24: `HPYX_ASYNC_MODE` env var for `launch::async` rollback (Implemented)
+
+- **Decision:** Add `async_mode` to `hpyx.config.DEFAULTS` (`"async"` by default), parsed from `HPYX_ASYNC_MODE` (`"async"` or `"deferred"`, case-insensitive). The C++ `async_submit` reads the env var directly via `std::getenv` and selects `hpx::launch::async` (default) or `hpx::launch::deferred` (rollback).
+- **Why:** Spec risk #1 — switching `hpx_async` from `launch::deferred` to `launch::async` is the core correctness fix in v1, but it is also a behavior change that could expose latent GIL or threading bugs in user code. A no-touch rollback flag lets operators flip back to v0.x semantics without rebuilding or downgrading. The deferred path is intentionally preserved (not deleted) so the rollback is real and tested.
+- **Result:** `HPYX_ASYNC_MODE=deferred python -c "import hpyx; ..."` returns the user's value but runs the callable in the calling thread on `.result()`. Tested as part of the issue #120 acceptance criteria. Will be removed in a future minor release once the `launch::async` path is proven in production.
+
+### 2026-04-24: Use `nb::handle` for `args` and `kwargs` parameters in `async_submit` (Implemented)
+
+- **Decision:** The C++ binding signature is `async_submit(nb::callable fn, nb::handle args, nb::handle kwargs)`, validated at runtime with `PyTuple_Check` / `PyDict_Check`. The C++ parameter names are `call_args` / `call_kwargs` (not `args` / `kwargs`).
+- **Why:** Nanobind treats the `args` and `kwargs` parameter **names** as a hint to render them as `*args` / `**kwargs` in the generated Python signature, even when the type is a concrete `nb::tuple` / `nb::dict`. With `nb::object` or `nb::tuple` as the type and a positional-named parameter, the rendered signature collapses to `(fn, **args)`, which makes the function impossible to call as `async_submit(fn, args_tuple, kwargs_dict)`. Using `nb::handle` plus runtime type checks avoids the auto-collection and gives a clean three-positional signature.
+- **Result:** `core_futures.async_submit(body, (), {})` works. The Python wrapper in `src/hpyx/futures/_submit.py` calls it as `async_submit(function, args, kwargs)` with explicit tuple/dict.
+
+### 2026-04-24: `HPXFuture` wraps `shared_future`, not `future`, internally (Implemented)
+
+- **Decision:** Every `HPXFuture` holds a `hpx::shared_future<PyPayload>` (not `hpx::future<PyPayload>`). `share()` is a no-op that copies the wrapper. `async_submit` calls `.share()` on the result of `hpx::async` before constructing `HPXFuture`.
+- **Why:** Python `concurrent.futures.Future` allows `result()` to be called multiple times (it caches the value). It allows `add_done_callback` to be registered after the future has completed. It allows `.then()` chains. All three need the underlying state to be sharable — `hpx::future<T>` is a single-consumer move-only handle; `hpx::shared_future<T>` is a multi-consumer copyable handle. Using `shared_future` everywhere matches Python semantics and removes a class of move-after-use bugs.
+- **Result:** Multiple `.result()` calls return the same value. `.then()` and `add_done_callback` capture `*this` by copy without invalidating the original. `share()` is exposed for API parity but is internally a no-op.
+
+### 2026-04-24: Pixi/uv archive cache is invalidated by deleting `~/Library/Caches/rattler/cache/uv-cache/archive-v0/*/hpyx/` (Operational)
+
+- **Decision:** When local rebuilds appear to silently revert the installed `_core.cpython-313t-darwin.so` to an older version, manually clear the rattler/uv archive cache before reinstalling.
+- **Why:** Pixi declares hpyx as `[feature.hpyx.pypi-dependencies]: hpyx = { path = ".", editable = true }`. Pixi syncs this through uv, which keeps a content-addressed archive cache at `~/Library/Caches/rattler/cache/uv-cache/archive-v0/`. Even with `pip install --force-reinstall --no-cache-dir`, the cached `.so` from an earlier successful build can be restored, masking source changes. Symptom: source has `async_submit(nb::handle, ...)` but compiled binary still shows `async_submit_impl(nb::callable, nb::args)` strings, and the installed `.so` timestamp predates the build output.
+- **Result:** The recipe is `for d in ~/Library/Caches/rattler/cache/uv-cache/archive-v0/*/; do [ -d "${d}hpyx" ] && rm -rf "$d"; done && pip install --no-build-isolation --no-cache-dir --force-reinstall -ve .`. Captured here so future contributors do not lose hours debugging "the build isn't picking up my changes."
+
+---
+
 ## Phase 0 — Foundation (2026-04-24)
 
 ### 2026-04-24: Move C++ sources into `src/_core/` package (Implemented)
