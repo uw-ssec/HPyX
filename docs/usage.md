@@ -251,6 +251,160 @@ future = submit(lambda x: x ** 2 + 2 * x + 1, 5)
 print(future.get())  # 36
 ```
 
+### Combinators (`when_all`, `when_any`, `dataflow`, `shared_future`)
+
+The `hpyx._core.futures` submodule exposes four composition primitives that
+operate on the underlying `HPXFuture`. They are the building blocks of the
+public `hpyx.futures` Pythonic wrapper that ships in a follow-up task.
+
+!!! note "Working with `HPXFuture` directly"
+    The combinators below take and return `HPXFuture` instances obtained from
+    `core_futures.async_submit(...)` or `core_futures.ready_future(...)`. The
+    user-facing `hpyx.futures.Future` wrapper (with `__await__` and the full
+    `concurrent.futures.Future` protocol) is a thin shell over these.
+
+```python
+import hpyx
+from hpyx._core import futures as core_futures
+
+hpyx.init(os_threads=4)
+```
+
+#### `when_all(inputs) -> HPXFuture`
+
+Returns a future whose result is a tuple of all input results in input order.
+Per the spec, **first-to-fail wins** — if any input raises, the combined future
+raises that first exception and does not aggregate siblings.
+
+```python
+f1 = core_futures.async_submit(lambda: 1, (), {})
+f2 = core_futures.async_submit(lambda: 2, (), {})
+f3 = core_futures.async_submit(lambda: 3, (), {})
+
+combined = core_futures.when_all([f1, f2, f3])
+assert combined.result() == (1, 2, 3)
+```
+
+If any input raises:
+
+```python
+def boom():
+    raise ValueError("first-failure")
+
+f_ok = core_futures.ready_future(42)
+f_bad = core_futures.async_submit(boom, (), {})
+
+combined = core_futures.when_all([f_ok, f_bad])
+combined.result()  # raises ValueError("first-failure")
+```
+
+#### `when_any(inputs) -> HPXFuture`
+
+Returns a future whose result is `(index, [HPXFuture, ...])` where `index` is
+the position of the first completed input in the original list. The list
+preserves the input wrappers so callers can call `.result()` on the winner (and
+on any laggards if needed).
+
+```python
+import time
+
+def slow():
+    time.sleep(0.5)
+    return "slow"
+
+f_slow = core_futures.async_submit(slow, (), {})
+f_fast = core_futures.ready_future("fast")
+
+idx, futures_list = core_futures.when_any([f_slow, f_fast]).result()
+print(idx)                              # 1
+print(futures_list[idx].result())       # "fast"
+```
+
+#### `dataflow(fn, inputs, kwargs={}) -> HPXFuture`
+
+Waits for all inputs, then invokes `fn(*results, **kwargs)` on an HPX worker.
+If any input raises, the upstream exception short-circuits — `fn` is never
+called and the resulting future raises the upstream exception.
+
+```python
+f1 = core_futures.ready_future(2)
+f2 = core_futures.ready_future(3)
+
+# Positional pattern
+result = core_futures.dataflow(lambda a, b: a + b, [f1, f2])
+assert result.result() == 5
+
+# With keyword arguments
+def compute(a, b, *, scale=1, offset=0):
+    return (a + b) * scale + offset
+
+result = core_futures.dataflow(compute, [f1, f2], {"scale": 10, "offset": 1})
+assert result.result() == 51
+```
+
+Exception short-circuit:
+
+```python
+def boom():
+    raise ValueError("upstream")
+
+def add(a, b):
+    return a + b  # never called
+
+f_bad = core_futures.async_submit(boom, (), {})
+f_ok = core_futures.ready_future(1)
+
+combined = core_futures.dataflow(add, [f_bad, f_ok])
+combined.result()  # raises ValueError("upstream")
+```
+
+#### `shared_future(future) -> HPXFuture`
+
+Returns a shared-future view of `future`. Since `HPXFuture` already wraps an
+`hpx::shared_future` internally, this is a pass-through that exists for API
+parity with the spec. The result can be `.result()`-ed any number of times.
+
+```python
+f = core_futures.async_submit(lambda: 99, (), {})
+s = core_futures.shared_future(f)
+
+assert s.result() == 99
+assert s.result() == 99   # safe to call repeatedly
+```
+
+#### Composition example
+
+```mermaid
+graph LR
+    A[async_submit fn1] --> WA[when_all]
+    B[async_submit fn2] --> WA
+    C[async_submit fn3] --> WA
+    WA -->|tuple of results| DF[dataflow combiner_fn]
+    DF --> RES[final HPXFuture]
+```
+
+```python
+f1 = core_futures.async_submit(lambda: 10, (), {})
+f2 = core_futures.async_submit(lambda: 20, (), {})
+f3 = core_futures.async_submit(lambda: 30, (), {})
+
+# Stage 1: fan-in three independent computations
+all_three = core_futures.when_all([f1, f2, f3])
+
+# Stage 2: feed the tuple result into a final reduction
+def combine(triple):
+    return sum(triple)
+
+stage2 = core_futures.async_submit(
+    lambda t: combine(t), (all_three.result(),), {}
+)
+print(stage2.result())   # 60
+```
+
+For multi-input dependencies where the downstream takes the *unpacked* values,
+prefer `dataflow` over `when_all().result()` so the downstream invocation runs
+on an HPX worker rather than the calling thread.
+
 ## Parallel Processing with for_loop
 
 The `for_loop` function provides parallel iteration over collections, applying a transformation function to each element in-place.

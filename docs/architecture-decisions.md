@@ -6,6 +6,24 @@ A running log of significant architecture decisions made during HPyX development
 
 ## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
 
+### 2026-04-24: Implement `dataflow` via `when_all().then()` rather than `hpx::dataflow` (Implemented)
+
+- **Decision:** The C++ binding for `dataflow(fn, inputs, kwargs)` calls `hpx::when_all(raws).then(continuation)` rather than `hpx::dataflow(launch, fn, raws)`. The continuation receives a single `hpx::future<std::vector<hpx::shared_future<PyPayload>>>`, walks it for sentinel exceptions, and only then builds the `*args` tuple and invokes `fn`.
+- **Why:** `hpx::dataflow` has two relevant overloads: a variadic form that forwards each input as a separate argument, and a range form that forwards a `std::vector<future<T>>` as one argument. Mixing the two through Python — where N is decided at runtime, but the lambda signature is fixed at compile time — leads to a compile-time pack-vs-vector mismatch. Going through `when_all().then()` collapses the call site to a single, fixed, range-style continuation; we then unpack the vector inside the lambda where we already need to walk it for sentinel detection. The semantics are identical to `hpx::dataflow` for our use case (N inputs → call fn) and there is no measurable scheduling difference for Python-typed payloads.
+- **Result:** `dataflow_impl` in `src/_core/futures.cpp` is ~50 lines of straight-line code with no template metaprogramming. Tests cover: positive path with 2 and 3 inputs, exception propagation from inputs (first-to-fail short-circuits without invoking `fn`), exception from `fn` itself, and kwargs forwarding.
+
+### 2026-04-24: `nb::handle` with `nb::dict()` default for `dataflow` kwargs, not `nb::kwargs` (Implemented)
+
+- **Decision:** The C++ signature is `dataflow_impl(nb::callable fn, std::vector<HPXFuture> inputs, nb::handle kwargs)`, validated at runtime with `PyDict_Check`, and registered as `m.def("dataflow", &dataflow_impl, "fn"_a, "inputs"_a, "kwargs"_a = nb::dict())`. Users call it positionally (`dataflow(fn, [f1, f2], {"k": v})`) or by name (`dataflow(fn, [f1, f2], kwargs={"k": v})`).
+- **Why:** Nanobind's `nb::kwargs` cannot coexist with named-argument annotations on the *preceding* positional parameters. The static_assert in `nb_func.h` requires `nargs_provided == nargs`, but `nb::kwargs` is counted as one of `nargs` while never accepting an `"_a"` annotation. The two ways out are (a) drop named annotations entirely, which loses keyword-call ergonomics for `fn` and `inputs`, or (b) use `nb::handle` with a runtime `PyDict_Check` and pass an empty dict default. Option (b) preserves the explicit `dataflow(fn=..., inputs=..., kwargs=...)` call shape while keeping nanobind's signature renderer happy.
+- **Result:** Tests pass for positional, keyword, and missing-kwargs paths. The `nb::dict()` default is shared across calls, but our code only reads from it (Py_INCREFs and forwards to `PyObject_Call`), so no mutation hazard exists. If a future caller starts mutating it, we will switch to a per-call factory.
+
+### 2026-04-24: Capture input `HPXFuture` wrappers in `when_any` continuation, not reconstruct (Implemented)
+
+- **Decision:** `when_any_impl` captures the original `std::vector<HPXFuture>` in a `std::shared_ptr` before launching the continuation, then returns a `(index, [HPXFuture, ...])` tuple where the list contains the *same wrapper instances* the caller passed in.
+- **Why:** The result tuple needs to give the caller a way to retrieve both the winner's value (via `result()`) and to inspect the laggards. Reconstructing fresh `HPXFuture` wrappers from each `hpx::shared_future<PyPayload>` would lose the per-wrapper `cancelled_` and `running_` atomic flags that `concurrent.futures.Future` semantics require. Capturing the original wrappers is also free: `HPXFuture` is copy-cheap (a `shared_future` plus two `shared_ptr<atomic>` flags), and the `shared_ptr<vector<HPXFuture>>` keeps the wrappers alive until the continuation runs.
+- **Result:** `tests/test_futures.py::test_when_any_returns_index_and_futures_list` passes. The list-of-futures pattern matches `concurrent.futures.wait()`'s "done set / not-done set" output shape closely enough that the upcoming Python wrapper can map between them without rebuilding state.
+
 ### 2026-04-24: Store `shared_ptr<PyObject>` (PyPayload) in the future state, not `nb::object` (Implemented)
 
 - **Decision:** The HPX future state holds `PyPayload = std::shared_ptr<PyObject>` with a custom GIL-acquiring deleter (`GILDecref`) instead of `nb::object`. `HPXFuture` wraps `hpx::shared_future<PyPayload>`.
