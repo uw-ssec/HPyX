@@ -76,6 +76,13 @@ def test_map_empty_input():
         assert results == []
 
 
+def test_map_truncates_to_shortest_iterable():
+    """Per stdlib: map silently truncates to the shortest iterable."""
+    with hpyx.HPXExecutor() as ex:
+        results = list(ex.map(lambda a, b: a + b, [1, 2, 3], [10, 20]))
+        assert results == [11, 22]
+
+
 # ---- shutdown ----
 
 def test_shutdown_is_idempotent():

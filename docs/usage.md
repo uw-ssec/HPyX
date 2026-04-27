@@ -45,11 +45,11 @@ from hpyx.multiprocessing import for_loop
 In v1, HPyX **auto-initializes** the HPX runtime the first time any API that needs it is called. You do not need to call `hpyx.init()` explicitly unless you want to configure thread count before the first use.
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 # Runtime starts automatically on first submit
-future = submit(lambda: 42)
-print(future.get())  # 42
+future = hpyx.async_(lambda: 42)
+print(future.result())  # 42
 ```
 
 ### Explicit initialization
@@ -103,9 +103,9 @@ from hpyx import HPXRuntime
 
 with HPXRuntime(os_threads=4):
     # runtime is guaranteed to be running here
-    from hpyx.futures import submit
-    future = submit(lambda: "hello from HPX")
-    print(future.get())
+    import hpyx
+    future = hpyx.async_(lambda: "hello from HPX")
+    print(future.result())
 
 # runtime is still running here — atexit owns shutdown
 print(hpyx.is_running())  # True
@@ -161,13 +161,12 @@ Set `HPYX_AUTOINIT=0` to require an explicit `hpyx.init()` call before any HPyX 
 ```python
 # With HPYX_AUTOINIT=0 in the environment:
 import hpyx
-from hpyx.futures import submit
 
 # This would raise RuntimeError without an explicit init:
 hpyx.init(os_threads=4)  # must come first
 
-future = submit(lambda: 42)
-print(future.get())
+future = hpyx.async_(lambda: 42)
+print(future.result())
 ```
 
 ## Diagnostics
@@ -639,11 +638,11 @@ with HPXRuntime():
 
 HPyX integrates well with NumPy arrays, enabling high-performance numerical computing.
 
-### NumPy Array Processing with submit
+### NumPy Array Processing with hpyx.async_
 
 ```python
 import numpy as np
-from hpyx.futures import submit
+import hpyx
 
 def array_statistics(arr):
     return {
@@ -659,8 +658,8 @@ with HPXRuntime():
     data = np.random.random(10000)
     
     # Process asynchronously
-    future = submit(array_statistics, data)
-    stats = future.get()
+    future = hpyx.async_(array_statistics, data)
+    stats = future.result()
     
     print(f"Array statistics: {stats}")
 ```
@@ -669,7 +668,7 @@ with HPXRuntime():
 
 ```python
 import numpy as np
-from hpyx.futures import submit
+import hpyx
 
 def matrix_multiply(a, b):
     return np.dot(a, b)
@@ -683,14 +682,14 @@ with HPXRuntime():
     B = np.random.random((100, 100))
     
     # Asynchronous matrix multiplication
-    mult_future = submit(matrix_multiply, A, B)
+    mult_future = hpyx.async_(matrix_multiply, A, B)
     
     # Asynchronous eigenvalue computation
-    eigen_future = submit(matrix_eigenvalues, A)
+    eigen_future = hpyx.async_(matrix_eigenvalues, A)
     
     # Get results
-    product = mult_future.get()
-    eigenvals = eigen_future.get()
+    product = mult_future.result()
+    eigenvals = eigen_future.result()
     
     print(f"Product shape: {product.shape}")
     print(f"Number of eigenvalues: {len(eigenvals)}")
@@ -722,7 +721,7 @@ with HPXRuntime():
 
 ```python
 import numpy as np
-from hpyx.futures import submit
+import hpyx
 
 def process_large_array(size):
     # Create and process a large array
@@ -745,12 +744,12 @@ with HPXRuntime():
     futures = []
     
     for size in sizes:
-        future = submit(process_large_array, size)
+        future = hpyx.async_(process_large_array, size)
         futures.append((size, future))
     
     # Collect results
     for size, future in futures:
-        result = future.get()
+        result = future.result()
         print(f"Array size {size}: {result}")
 ```
 
@@ -761,7 +760,7 @@ Proper error handling is essential when working with asynchronous operations and
 ### Exception Handling with Futures
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def risky_operation(x):
     if x < 0:
@@ -772,13 +771,13 @@ with HPXRuntime():
     # Submit operations that might fail
     futures = []
     for value in [2, 0, -1, 4]:
-        future = submit(risky_operation, value)
+        future = hpyx.async_(risky_operation, value)
         futures.append((value, future))
     
     # Handle results and exceptions
     for value, future in futures:
         try:
-            result = future.get()
+            result = future.result()
             print(f"f({value}) = {result}")
         except ZeroDivisionError:
             print(f"f({value}): Division by zero error")
@@ -791,13 +790,13 @@ with HPXRuntime():
 ### Runtime Initialization Errors
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def safe_computation():
     try:
         with HPXRuntime():
-            future = submit(lambda: "Success!")
-            return future.get()
+            future = hpyx.async_(lambda: "Success!")
+            return future.result()
     except Exception as e:
         print(f"Runtime initialization failed: {e}")
         return None
@@ -810,7 +809,7 @@ if result:
 ### Robust Error Handling Pattern
 
 ```python
-from hpyx.futures import submit
+import hpyx
 import traceback
 
 def robust_parallel_computation(data_list):
@@ -832,13 +831,13 @@ def robust_parallel_computation(data_list):
             
             # Submit all tasks
             for i, item in enumerate(data_list):
-                future = submit(process_item, item)
+                future = hpyx.async_(process_item, item)
                 futures.append((i, item, future))
             
             # Collect results
             for i, item, future in futures:
                 try:
-                    result = future.get()
+                    result = future.result()
                     results.append((i, item, result))
                 except Exception as e:
                     error_info = {
@@ -870,9 +869,9 @@ for error in errors:
 
 ## Performance Considerations
 
-### Choosing Between submit and for_loop
+### Choosing Between hpyx.async_ and for_loop
 
-- Use `submit` for:
+- Use `hpyx.async_` for:
   - Independent tasks that can run asynchronously
   - Tasks with different execution times
   - When you need to handle results individually
@@ -906,17 +905,17 @@ def benchmark_threading(thread_counts, task_size=100000):
         thread_config = "auto" if threads == "auto" else threads
         
         with HPXRuntime(os_threads=thread_config):
-            from hpyx.futures import submit
+            import hpyx
             
             # Submit multiple tasks
             futures = []
             for i in range(10):
-                future = submit(cpu_bound_task, task_size)
+                future = hpyx.async_(cpu_bound_task, task_size)
                 futures.append(future)
             
             # Wait for completion
             for future in futures:
-                future.get()
+                future.result()
         
         elapsed = time.time() - start_time
         results[threads] = elapsed
@@ -937,7 +936,7 @@ for threads, time_taken in results.items():
 
 ```python
 import numpy as np
-from hpyx.futures import submit
+import hpyx
 
 def process_chunk(chunk_data):
     """Process a chunk of data efficiently."""
@@ -955,13 +954,13 @@ def memory_efficient_processing(total_size, chunk_size=10000):
         end = min(start + chunk_size, total_size)
         chunk = np.random.random(end - start)
         
-        future = submit(process_chunk, chunk)
+        future = hpyx.async_(process_chunk, chunk)
         chunk_futures.append(future)
     
     # Collect results
     total_sum = 0
     for future in chunk_futures:
-        chunk_sum = future.get()
+        chunk_sum = future.result()
         total_sum += chunk_sum
     
     return total_sum
@@ -987,13 +986,13 @@ with HPXRuntime():
 ### 2. Handle Exceptions Gracefully
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def reliable_computation(data):
     try:
         with HPXRuntime():
-            future = submit(your_function, data)
-            return future.get()
+            future = hpyx.async_(your_function, data)
+            return future.result()
     except Exception as e:
         print(f"Computation failed: {e}")
         return None
@@ -1017,7 +1016,7 @@ task_queue = deque()
 ### 4. Batch Operations When Possible
 
 ```python
-from hpyx.futures import submit
+import hpyx
 
 def batch_processing(items, batch_size=100):
     """Process items in batches for better efficiency."""
@@ -1030,13 +1029,13 @@ def batch_processing(items, batch_size=100):
     # Create batches
     for i in range(0, len(items), batch_size):
         batch = items[i:i + batch_size]
-        future = submit(process_batch, batch)
+        future = hpyx.async_(process_batch, batch)
         futures.append(future)
     
     # Collect results
     results = []
     for future in futures:
-        batch_result = future.get()
+        batch_result = future.result()
         results.extend(batch_result)
     
     return results
@@ -1050,7 +1049,7 @@ processed = batch_processing(large_list, batch_size=500)
 
 ```python
 import time
-from hpyx.futures import submit
+import hpyx
 
 def measure_performance(func, *args, **kwargs):
     """Measure execution time of a function."""
@@ -1060,8 +1059,8 @@ def measure_performance(func, *args, **kwargs):
     return result, elapsed
 
 def parallel_computation(n):
-    future = submit(lambda: sum(range(n)))
-    return future.get()
+    future = hpyx.async_(lambda: sum(range(n)))
+    return future.result()
 
 def sequential_computation(n):
     return sum(range(n))
@@ -1080,7 +1079,7 @@ print(f"Speedup: {sequential_time / parallel_time:.2f}x")
 ### 6. Design for Scalability
 
 ```python
-from hpyx.futures import submit
+import hpyx
 import multiprocessing
 
 def scalable_computation(data, max_workers=None):
@@ -1099,11 +1098,11 @@ def scalable_computation(data, max_workers=None):
     # Divide work into chunks
     for i in range(0, len(data), chunk_size):
         chunk = data[i:i + chunk_size]
-        future = submit(process_chunk, chunk)
+        future = hpyx.async_(process_chunk, chunk)
         futures.append(future)
     
     # Combine results
-    total = sum(future.get() for future in futures)
+    total = sum(future.result() for future in futures)
     return total
 
 # Automatically scale to available cores

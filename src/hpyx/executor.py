@@ -21,6 +21,7 @@ For dask integration:
 
 from __future__ import annotations
 
+import threading
 import warnings
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Executor
@@ -52,14 +53,12 @@ class HPXExecutor(Executor):
 
     def __init__(self, max_workers: int | None = None) -> None:
         self._closed = False
-        if max_workers is not None and _runtime.is_running():
-            running_threads: int | None = None
-            try:
-                started_cfg = _runtime._started_cfg
-                if started_cfg is not None:
-                    running_threads = started_cfg["os_threads"]
-            except Exception:  # noqa: BLE001
-                running_threads = None
+        self._lock = threading.Lock()
+        if max_workers is None:
+            _runtime.ensure_started()
+            return
+        if _runtime.is_running():
+            running_threads = _runtime.running_os_threads()
             if running_threads is not None and running_threads != max_workers:
                 warnings.warn(
                     f"HPXExecutor(max_workers={max_workers}) differs from the "
@@ -69,10 +68,8 @@ class HPXExecutor(Executor):
                     UserWarning,
                     stacklevel=2,
                 )
-        elif max_workers is not None:
-            _runtime.ensure_started(os_threads=max_workers)
         else:
-            _runtime.ensure_started()
+            _runtime.ensure_started(os_threads=max_workers)
 
     def submit(
         self,
@@ -81,8 +78,10 @@ class HPXExecutor(Executor):
         *args: Any,
         **kwargs: Any,
     ) -> Future:
-        if self._closed:
-            raise RuntimeError("HPXExecutor has been shut down")
+        with self._lock:
+            closed = self._closed
+        if closed:
+            raise RuntimeError("cannot schedule new futures after shutdown")
         return async_(fn, *args, **kwargs)
 
     def map(
@@ -93,10 +92,13 @@ class HPXExecutor(Executor):
         chunksize: int = 1,  # noqa: ARG002 — accepted for protocol; unused (Plan 3 revisits)
     ) -> Iterator[Any]:
         # Submit every item eagerly, then yield results in order. This
-        # matches concurrent.futures.ThreadPoolExecutor.map semantics.
-        if self._closed:
-            raise RuntimeError("HPXExecutor has been shut down")
-        futures = [self.submit(fn, *group) for group in zip(*iterables, strict=True)]
+        # matches concurrent.futures.ThreadPoolExecutor.map semantics —
+        # silent truncation to the shortest iterable.
+        with self._lock:
+            closed = self._closed
+        if closed:
+            raise RuntimeError("cannot schedule new futures after shutdown")
+        futures = [self.submit(fn, *group) for group in zip(*iterables)]
 
         def _iter() -> Iterator[Any]:
             try:
@@ -117,7 +119,8 @@ class HPXExecutor(Executor):
     ) -> None:
         # Per-handle shutdown. Does NOT stop the HPX runtime — atexit
         # owns teardown because HPX cannot restart within a process.
-        self._closed = True
+        with self._lock:
+            self._closed = True
 
 
 __all__ = ["HPXExecutor"]

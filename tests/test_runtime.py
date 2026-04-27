@@ -33,6 +33,11 @@ def test_is_running_true_during_session():
     assert is_running()
 
 
+def test_running_os_threads_reflects_session_config():
+    """The session fixture starts the runtime with os_threads=4."""
+    assert _runtime.running_os_threads() == 4
+
+
 def test_HPXRuntime_context_manager():
     assert is_running()
     with HPXRuntime() as rt:
