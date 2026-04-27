@@ -8,16 +8,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from hpyx.futures import Future
+# Imported unconditionally (not under TYPE_CHECKING) so that
+# ``typing.get_type_hints()`` on these functions resolves the ``Future``
+# reference at runtime. Importing the leaf module ``hpyx.futures._future``
+# directly avoids triggering ``hpyx.futures.__init__`` here.
+from hpyx.futures._future import Future
 
 
 _logger = logging.getLogger("hpyx.aio")
 
 
-async def _future_await(fut: "Future") -> Any:
+async def _future_await(fut: Future) -> Any:
     """Bridge a hpyx.Future into an asyncio-awaitable coroutine.
 
     Used by ``Future.__await__``. Wraps the hpyx Future into an
@@ -29,13 +32,13 @@ async def _future_await(fut: "Future") -> Any:
     - If the asyncio Future is already done (cancelled mid-flight),
       the result post is a no-op.
     - If the loop is closed by the time the HPX future fires, we log
-      a debug message and drop the result silently — re-raising would
+      a warning and drop the result silently — re-raising would
       crash an HPX worker thread that has nothing useful to do with it.
     """
     loop = asyncio.get_running_loop()
     aio_fut: asyncio.Future = loop.create_future()
 
-    def _on_done(_hpx_fut: "Future") -> None:
+    def _on_done(_hpx_fut: Future) -> None:
         # Runs on an HPX worker thread (or the calling thread, if the
         # hpyx Future was already done when add_done_callback was made).
         try:
@@ -56,8 +59,8 @@ def _post_result(loop: asyncio.AbstractEventLoop, aio_fut: asyncio.Future, value
     try:
         loop.call_soon_threadsafe(_set)
     except RuntimeError:
-        # Loop is closed; drop silently with a debug log.
-        _logger.debug("hpyx.aio: dropping result; event loop is closed")
+        # Loop is closed; drop silently with a warning log.
+        _logger.warning("hpyx.aio: dropping result; event loop is closed")
 
 
 def _post_exception(
@@ -71,10 +74,10 @@ def _post_exception(
     try:
         loop.call_soon_threadsafe(_set)
     except RuntimeError:
-        _logger.debug("hpyx.aio: dropping exception; event loop is closed")
+        _logger.warning("hpyx.aio: dropping exception; event loop is closed")
 
 
-async def await_all(*futures: "Future") -> tuple:
+async def await_all(*futures: Future) -> tuple:
     """Await all input futures; return a tuple of their results in order.
 
     Unlike :func:`asyncio.gather`, exceptions are NOT consumed — the
@@ -85,7 +88,7 @@ async def await_all(*futures: "Future") -> tuple:
     return await combined
 
 
-async def await_any(*futures: "Future") -> "tuple[int, list[Future]]":
+async def await_any(*futures: Future) -> tuple[int, list[Future]]:
     """Await any input future; return ``(index, futures_list)``.
 
     The element at ``futures_list[index]`` is the one that completed;

@@ -143,3 +143,48 @@ def test_await_in_two_concurrent_tasks():
         return await asyncio.gather(task(f1), task(f2))
 
     assert asyncio.run(main()) == [1, 2]
+
+
+# ---- concurrent.futures interop ----
+
+def test_hpyx_Future_visible_in_concurrent_futures_wait():
+    """Per C1 fix: concurrent.futures.wait() must see completed hpyx Futures."""
+    import concurrent.futures
+    fut = hpyx.async_(lambda: 42)
+    fut.result()  # ensure completion
+    done, not_done = concurrent.futures.wait([fut], timeout=2.0)
+    assert fut in done
+    assert not_done == set()
+
+
+def test_hpyx_Future_visible_in_concurrent_futures_as_completed():
+    """Per C1 fix: concurrent.futures.as_completed() must yield completed hpyx Futures."""
+    import concurrent.futures
+    f1 = hpyx.async_(lambda: 1)
+    f2 = hpyx.async_(lambda: 2)
+    f3 = hpyx.async_(lambda: 3)
+    results = []
+    for f in concurrent.futures.as_completed([f1, f2, f3], timeout=2.0):
+        results.append(f.result())
+    assert sorted(results) == [1, 2, 3]
+
+
+def test_set_result_raises():
+    """Per C2 fix: user calls to set_result must raise."""
+    fut = hpyx.async_(lambda: 1)
+    with pytest.raises(RuntimeError, match="HPX runtime"):
+        fut.set_result("user_value")
+
+
+def test_set_exception_raises():
+    """Per C2 fix: user calls to set_exception must raise."""
+    fut = hpyx.async_(lambda: 1)
+    with pytest.raises(RuntimeError, match="HPX runtime"):
+        fut.set_exception(ValueError("user-raised"))
+
+
+def test_set_running_or_notify_cancel_raises():
+    """Per C2 fix: user calls to set_running_or_notify_cancel must raise."""
+    fut = hpyx.async_(lambda: 1)
+    with pytest.raises(RuntimeError, match="HPX runtime"):
+        fut.set_running_or_notify_cancel()

@@ -38,6 +38,31 @@ class Future(concurrent.futures.Future):
         self._callbacks: list[Callable[["Future"], None]] | None = None
         self._callback_lock = threading.Lock()
         self._callbacks_registered = False
+        # Lock + flag for ``_sync_base_state``. Multiple HPX worker threads
+        # may race to flip the inherited base state (the eager
+        # ``_sync_on_done`` C++ callback registered below and the user-level
+        # ``_drain`` C++ callback both call ``_sync_base_state``). The flag
+        # ensures at most one of them invokes the base ``set_result`` /
+        # ``set_exception``.
+        self._base_state_lock = threading.Lock()
+        self._base_state_synced = False
+        # Eagerly mirror the underlying HPX state into the inherited
+        # ``concurrent.futures.Future._state`` so that stdlib helpers
+        # (``concurrent.futures.wait``, ``as_completed``) — which inspect
+        # the base ``_state`` directly without going through our public
+        # API — observe completion correctly. If the underlying future
+        # is already done at construction time, sync immediately;
+        # otherwise register a one-shot C++ callback that fires when it
+        # completes.
+        if self._hpx.done():
+            self._sync_base_state()
+        else:
+            outer = self
+
+            def _sync_on_done(_hpx_fut: "_core.futures.HPXFuture") -> None:
+                outer._sync_base_state()
+
+            self._hpx.add_done_callback(_sync_on_done)
 
     # ---- concurrent.futures.Future protocol ----
 
@@ -71,6 +96,9 @@ class Future(concurrent.futures.Future):
         # C++ callback that drains a Python-side ``list[Callable]``. The
         # first call sets up the drain; subsequent calls just append.
         if self.done():
+            # Sync the inherited concurrent.futures.Future state so that
+            # stdlib helpers (wait, as_completed) see this Future as done.
+            self._sync_base_state()
             try:
                 fn(self)
             except BaseException:
@@ -87,6 +115,10 @@ class Future(concurrent.futures.Future):
                 outer = self
 
                 def _drain(_hpx_fut: "_core.futures.HPXFuture") -> None:
+                    # Flip the inherited base-class state first, so any
+                    # user callback (or stdlib helper waking up) observes
+                    # this Future as done from the concurrent.futures side.
+                    outer._sync_base_state()
                     with outer._callback_lock:
                         cbs = outer._callbacks or []
                         outer._callbacks = None
@@ -100,6 +132,54 @@ class Future(concurrent.futures.Future):
                             )
 
                 self._hpx.add_done_callback(_drain)
+
+    # ---- internal: base-class state sync ----
+
+    def _sync_base_state(self) -> None:
+        """Flip the inherited ``concurrent.futures.Future`` state to match ``_hpx``.
+
+        Required so that stdlib helpers (``concurrent.futures.wait``,
+        ``as_completed``) see this Future as done — they read the base
+        class's ``_state``, which our overrides of ``done()``/``result()``
+        do not touch.
+
+        Idempotent and thread-safe: multiple HPX worker threads may race
+        to invoke this (eager ``_sync_on_done`` and user-level ``_drain``
+        callbacks both call it). The ``_base_state_lock`` + flag ensure
+        the base ``set_result``/``set_exception`` runs at most once.
+        Bypasses our public ``set_result``/``set_exception`` overrides
+        (which raise) by calling the unbound base methods.
+        """
+        with self._base_state_lock:
+            if self._base_state_synced:
+                return
+            self._base_state_synced = True
+            try:
+                value = self._hpx.result()
+            except BaseException as exc:  # noqa: BLE001
+                concurrent.futures.Future.set_exception(self, exc)
+            else:
+                concurrent.futures.Future.set_result(self, value)
+
+    # ---- inherited mutators: forbid direct user calls ----
+
+    def set_result(self, result: Any) -> None:
+        raise RuntimeError(
+            "hpyx.Future state is set by the HPX runtime; "
+            "do not call set_result directly"
+        )
+
+    def set_exception(self, exception: BaseException | None) -> None:
+        raise RuntimeError(
+            "hpyx.Future state is set by the HPX runtime; "
+            "do not call set_exception directly"
+        )
+
+    def set_running_or_notify_cancel(self) -> bool:
+        raise RuntimeError(
+            "hpyx.Future state is set by the HPX runtime; "
+            "do not call set_running_or_notify_cancel directly"
+        )
 
     # ---- HPX-native ----
 
