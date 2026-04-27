@@ -679,6 +679,9 @@ For `await hpyx.async_(fn)` syntax, `asyncio.wrap_future`, and the
 
 ### dask integration
 
+`HPXExecutor` works as a dask scheduler out of the box because dask's
+scheduler resolver accepts any `concurrent.futures.Executor` subclass:
+
 ```python
 import dask.array as da
 import hpyx
@@ -689,7 +692,51 @@ with hpyx.HPXExecutor() as ex:
 print(total)
 ```
 
-This is the integration that motivated the v1 executor rewrite — making `HPXExecutor` a true `concurrent.futures.Executor` subclass means dask accepts it as a scheduler without any HPyX-side adapters.
+This is the integration that motivated the v1 executor rewrite — making
+`HPXExecutor` a true `concurrent.futures.Executor` subclass means dask
+accepts it as a scheduler without any HPyX-side adapters.
+
+#### Worked examples
+
+`tests/test_dask_integration.py` covers four flavors of integration; each
+runs end-to-end through `HPXExecutor`:
+
+| Pattern | Example |
+|---------|---------|
+| Array sum | `da.arange(1000, chunks=100).sum().compute(scheduler=ex)` |
+| Chunked matmul | `(a @ b).compute(scheduler=ex)` for `da.from_array(a_np, chunks=(16, 16))` |
+| `delayed` chain | `total([inc(i) for i in range(10)]).compute(scheduler=ex)` |
+| Multi-stage reduction | `arr.mean().compute(...)` then `arr.var().compute(...)` |
+
+A representative chunked-reduction example:
+
+```python
+import dask.array as da
+import numpy as np
+import hpyx
+
+rng = np.random.default_rng(0)
+arr_np = rng.random(10_000)
+arr = da.from_array(arr_np, chunks=1_000)
+
+with hpyx.HPXExecutor() as ex:
+    mean = arr.mean().compute(scheduler=ex)
+    var = arr.var().compute(scheduler=ex)
+
+np.testing.assert_allclose(mean, arr_np.mean(), rtol=1e-10)
+np.testing.assert_allclose(var, arr_np.var(), rtol=1e-10)
+```
+
+!!! note "Free-threading and `dask-core`"
+    HPyX targets Python 3.13t (free-threaded). Upstream `tornado` does not
+    yet ship a `cp313t` wheel, which means the full `dask` metapackage
+    (which depends on `distributed` → `tornado`) cannot be installed in
+    the free-threaded test environment. HPyX's test environment uses
+    [`dask-core`](https://anaconda.org/conda-forge/dask-core) — the noarch
+    package without `distributed` — which provides the `dask.array`,
+    `dask.delayed`, and scheduler-resolution code paths exercised here.
+    `dask.distributed` integration awaits upstream tornado free-threading
+    support.
 
 ### Lifecycle relationship to the HPX runtime
 

@@ -6,6 +6,18 @@ A running log of significant architecture decisions made during HPyX development
 
 ## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
 
+### 2026-04-27: Test dependency is `dask-core`, not `dask` — free-threading constraint (Implemented)
+
+- **Decision:** `pixi.toml` adds `dask-core >=2024.10.0` (and `numpy >=1.26`) under `[feature.test.dependencies]`. The full `dask` metapackage is **not** added.
+- **Why:** The free-threaded `test-py313t` environment cannot install the full `dask` metapackage because `dask` pulls in `distributed`, which depends on `tornado`, which does not yet ship a `cp313t` build on conda-forge. The `dask-core` noarch package provides `dask.array`, `dask.delayed`, `dask.base.get_scheduler`, and the entire scheduler-resolution code path that HPyX needs to validate the `dask.compute(scheduler=HPXExecutor())` integration. Dropping `distributed` is acceptable for v1 because HPyX is single-process by design (multi-locality / parcelport ships in v2).
+- **Result:** `tests/test_dask_integration.py` runs cleanly under `test-py313t` with all four smoke tests passing (`da.array.sum`, chunked matmul, `dask.delayed` chain, multi-stage reductions). `dask.distributed` integration is explicitly out-of-scope for v1; documented in the dask integration section of the usage guide. Will revisit when upstream `tornado` ships a free-threading build.
+
+### 2026-04-27: Dask integration smoke test pinned at the executor boundary (Implemented)
+
+- **Decision:** `tests/test_dask_integration.py` exercises four code paths: `da.arange(...).sum().compute(scheduler=ex)`, chunked 64×64 matmul against a numpy reference, `dask.delayed` graph compilation, and multi-stage reductions (`mean`, `var`). All four use the `with hpyx.HPXExecutor() as ex:` pattern and pass `scheduler=ex` to `.compute()`. No HPyX-side adapter or dask-side patch is required.
+- **Why:** The Phase 1 epic (#116) lists `dask.compute(arr.sum(), scheduler=hpyx.HPXExecutor())` as a top-level acceptance criterion. Pinning the integration with a smoke test (rather than a benchmark or stress test) catches regressions cheaply: any change to `HPXExecutor`'s submit/map/shutdown surface that breaks dask's scheduler resolution will fail these tests in CI before reaching users. The four flavors are deliberately diverse — array reductions, dense linear algebra, lazy graphs, and back-to-back compute calls — so a regression in any one of them shows up as a specific test failure rather than a generic "dask doesn't work."
+- **Result:** All 4 tests pass; the dask integration story for v1 is now contractually pinned. Future executor changes that break the `concurrent.futures.Executor` interface will fail at least one of these tests.
+
 ### 2026-04-27: `hpyx.Future` inherits from `concurrent.futures.Future` (Implemented)
 
 - **Decision:** `hpyx.futures._future.Future` is a real subclass of `concurrent.futures.Future`. The original Task 5 implementation used composition with duck-typing; the inheritance change went in to support `asyncio.wrap_future` and `loop.run_in_executor`, which both perform `isinstance(fut, concurrent.futures.Future)` checks before threading state through their internals.
