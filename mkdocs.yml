@@ -45,7 +45,8 @@ plugins:
 # Configuration
 theme:
   name: material
-  logo: assets/images/HPX_STELLAR_blue.png
+  logo: assets/svgs/HPyX_Logo.svg
+  favicon: assets/svgs/HPyX_Logo.svg
   custom_dir: docs/.overrides
   features:
     - announce.dismiss
@@ -70,7 +71,7 @@ theme:
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to dark mode
-      primary: indigo
+      primary: custom
       accent: indigo
     - scheme: slate
       toggle:

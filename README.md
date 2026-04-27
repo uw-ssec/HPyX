@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/assets/svgs/HPyX_Logo_Full.svg" alt="HPyX" width="500"/>
+</p>
+
 # HPyX: Python Bindings for HPX C++ Parallelism Library
 
 [![DOI](https://zenodo.org/badge/966326660.svg)](https://zenodo.org/badge/latestdoi/966326660)

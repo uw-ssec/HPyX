@@ -7,6 +7,24 @@
   height: 1.5rem;
 }
 
+/* Toggle logo by color scheme: colored on default, white on slate.
+   Specificity bumped to beat Material's `.md-header__button.md-logo img`. */
+[data-md-color-scheme="default"] .md-logo img.hpyx-logo--dark,
+[data-md-color-scheme="slate"]   .md-logo img.hpyx-logo--light {
+  display: none;
+}
+
+/* Custom primary color for light mode — HPyX brand palette
+   (sourced from `docs/assets/svgs/HPyX_Text.svg`).
+   Activated by `palette[].primary: custom` in mkdocs.yml. */
+[data-md-color-scheme="default"][data-md-color-primary="custom"] {
+  --md-primary-fg-color: #012F61;        /* dominant navy from HPyX_Text */
+  --md-primary-fg-color--light: #115AA5; /* mid-tone from HPyX_Text */
+  --md-primary-fg-color--dark: #001530;  /* a step darker than the navy */
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.7);
+}
+
 /* Mark external links as such (also in nav) */
 a.external:hover::after,
 a.md-nav__link[href^="https:"]:hover::after {

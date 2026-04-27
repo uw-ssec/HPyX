@@ -1,0 +1,14 @@
+{#-
+  Override of Material's partials/logo.html to render two logos
+  (one per color scheme) and toggle visibility via CSS.
+-#}
+<img
+  src="{{ 'assets/svgs/HPyX_Logo.svg' | url }}"
+  alt="logo"
+  class="hpyx-logo hpyx-logo--light"
+>
+<img
+  src="{{ 'assets/svgs/HPyX_Logo_white.svg' | url }}"
+  alt="logo"
+  class="hpyx-logo hpyx-logo--dark"
+>
