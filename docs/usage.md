@@ -14,11 +14,12 @@ This guide provides comprehensive examples and usage patterns for HPyX, the Pyth
 4. [Diagnostics](#diagnostics)
 5. [Asynchronous Programming with Futures](#asynchronous-programming-with-futures)
 6. [The HPXExecutor](#the-hpxexecutor)
-7. [Parallel Processing with for_loop](#parallel-processing-with-for_loop)
-8. [Working with NumPy](#working-with-numpy)
-9. [Error Handling](#error-handling)
-10. [Performance Considerations](#performance-considerations)
-11. [Best Practices](#best-practices)
+7. [asyncio Integration](#asyncio-integration)
+8. [Parallel Processing with for_loop](#parallel-processing-with-for_loop)
+9. [Working with NumPy](#working-with-numpy)
+10. [Error Handling](#error-handling)
+11. [Performance Considerations](#performance-considerations)
+12. [Best Practices](#best-practices)
 
 ## Getting Started
 
@@ -31,6 +32,7 @@ HPyX provides a clean Python interface to HPX's parallel computing capabilities.
 - `hpyx.async_` / `hpyx.Future` — submit functions for asynchronous execution
 - `hpyx.when_all` / `hpyx.when_any` / `hpyx.dataflow` / `hpyx.shared_future` / `hpyx.ready_future` — future composition
 - `hpyx.HPXExecutor` — drop-in `concurrent.futures.Executor` (works with `asyncio.run_in_executor`, `dask.compute`, etc.)
+- `hpyx.aio.await_all` / `hpyx.aio.await_any` — asyncio-friendly future combinators (`await fut` and `asyncio.wrap_future` also Just Work)
 - `hpyx.multiprocessing.for_loop` — parallel iteration over collections
 
 ### Basic Import
@@ -450,7 +452,7 @@ fut.cancel()                     # only succeeds before the task starts
 fut.add_done_callback(fn)        # FIFO; runs synchronously if already done
 fut.then(fn)                     # callback receives the resolved Future
 fut.share()                      # return a shareable view
-await fut                        # asyncio bridge (lands in a follow-up task)
+await fut                        # asyncio bridge — see § asyncio Integration
 ```
 
 #### Submitting work
@@ -671,8 +673,9 @@ async def main():
 asyncio.run(main())  # 1024
 ```
 
-(Direct `await hpyx.async_(fn)` syntax via `Future.__await__` ships in a
-follow-up task.)
+For `await hpyx.async_(fn)` syntax, `asyncio.wrap_future`, and the
+`hpyx.aio.await_all` / `await_any` combinators, see the
+[asyncio Integration](#asyncio-integration) section.
 
 ### dask integration
 
@@ -737,6 +740,224 @@ assert results == [i * 2 for i in range(50)]
 ```
 
 The `_closed` flag is guarded by an internal `threading.Lock`, so concurrent `submit`/`shutdown` from different threads is well-defined under free-threaded Python 3.13t.
+
+## asyncio Integration
+
+HPyX integrates with [`asyncio`](https://docs.python.org/3/library/asyncio.html) at three levels:
+
+1. **Direct `await fut`** — `hpyx.Future` is awaitable. The result posts back to the running event loop via `loop.call_soon_threadsafe` from the HPX worker thread.
+2. **stdlib bridges** — `asyncio.wrap_future(fut)` and `loop.run_in_executor(HPXExecutor(), fn, ...)` both work because `hpyx.Future` is a real subclass of `concurrent.futures.Future`.
+3. **`hpyx.aio` combinators** — `hpyx.aio.await_all` and `hpyx.aio.await_any` are async-friendly wrappers around `when_all` / `when_any`.
+
+### Direct `await`
+
+```python
+import asyncio
+import hpyx
+
+async def main():
+    fut = hpyx.async_(lambda: 42)
+    return await fut
+
+asyncio.run(main())  # 42
+```
+
+Exceptions raised in the task body propagate through `await` cleanly:
+
+```python
+async def main():
+    def boom():
+        raise ValueError("from-hpx")
+    return await hpyx.async_(boom)
+
+asyncio.run(main())  # raises ValueError("from-hpx")
+```
+
+The bridge does **not** block the event loop — other coroutines continue to run while the HPX task is in flight:
+
+```python
+async def main():
+    iterations = 0
+
+    async def counter():
+        nonlocal iterations
+        while iterations < 100:
+            iterations += 1
+            await asyncio.sleep(0.001)
+
+    import time
+    def slow():
+        time.sleep(0.1)
+        return "slow-result"
+
+    counter_task = asyncio.create_task(counter())
+    result = await hpyx.async_(slow)
+    await counter_task
+    return result, iterations
+
+result, n = asyncio.run(main())
+# result == "slow-result"; n is typically ~50–100 (loop kept running while HPX worked)
+```
+
+### `asyncio.wrap_future`
+
+`asyncio.wrap_future` accepts any `concurrent.futures.Future`, and `hpyx.Future` qualifies:
+
+```python
+import asyncio
+import hpyx
+
+async def main():
+    fut = hpyx.async_(lambda: "ok")
+    return await asyncio.wrap_future(fut)
+
+asyncio.run(main())  # 'ok'
+```
+
+This is useful when you have a coroutine that already accepts `asyncio.Future` and wants to await an HPyX future without HPyX-specific syntax.
+
+### `loop.run_in_executor` with `HPXExecutor`
+
+Because `HPXExecutor` is a real `concurrent.futures.Executor` subclass, asyncio's standard executor pattern Just Works:
+
+```python
+import asyncio
+import hpyx
+
+async def main():
+    loop = asyncio.get_running_loop()
+    with hpyx.HPXExecutor() as ex:
+        return await loop.run_in_executor(ex, pow, 2, 10)
+
+asyncio.run(main())  # 1024
+```
+
+### `hpyx.aio.await_all` and `hpyx.aio.await_any`
+
+These are async-friendly wrappers around the `when_all` / `when_any` combinators:
+
+```python
+import asyncio
+import hpyx
+
+async def main():
+    f1 = hpyx.async_(lambda: 1)
+    f2 = hpyx.async_(lambda: 2)
+    f3 = hpyx.async_(lambda: 3)
+    return await hpyx.aio.await_all(f1, f2, f3)
+
+asyncio.run(main())  # (1, 2, 3)
+```
+
+Unlike `asyncio.gather`, `await_all` does not consume exceptions — the **first** failure aborts the entire await (matches the [`when_all`](#when_allinputs---hpxfuture) short-circuit semantics):
+
+```python
+async def main():
+    f_ok = hpyx.async_(lambda: 42)
+    f_bad = hpyx.async_(lambda: 1 / 0)
+    return await hpyx.aio.await_all(f_ok, f_bad)
+
+asyncio.run(main())  # raises ZeroDivisionError
+```
+
+`await_any` returns `(index, futures_list)` once any input completes. The list contains all input `Future` objects so callers can inspect the laggards if needed:
+
+```python
+import time
+
+async def main():
+    def slow():
+        time.sleep(0.2)
+        return "slow"
+    f_slow = hpyx.async_(slow)
+    f_fast = hpyx.async_(lambda: "fast")
+    idx, futs = await hpyx.aio.await_any(f_slow, f_fast)
+    return idx, futs[idx].result()
+
+asyncio.run(main())  # (1, 'fast')
+```
+
+### Concurrent awaiters
+
+Multiple coroutines can `await` the same hpyx Future, or independently await separate futures inside an `asyncio.gather`:
+
+```python
+import asyncio
+import hpyx
+
+async def main():
+    f1 = hpyx.async_(lambda: 1)
+    f2 = hpyx.async_(lambda: 2)
+
+    async def task(f):
+        return await f
+
+    return await asyncio.gather(task(f1), task(f2))
+
+asyncio.run(main())  # [1, 2]
+```
+
+### `concurrent.futures.wait` and `as_completed`
+
+Because `hpyx.Future` keeps the inherited base class state in sync with the underlying `_hpx`, the synchronous stdlib helpers also work:
+
+```python
+import concurrent.futures
+import hpyx
+
+f1 = hpyx.async_(lambda: 1)
+f2 = hpyx.async_(lambda: 2)
+f3 = hpyx.async_(lambda: 3)
+
+done, not_done = concurrent.futures.wait([f1, f2, f3], timeout=2.0)
+assert {f.result() for f in done} == {1, 2, 3}
+
+for f in concurrent.futures.as_completed([f1, f2, f3]):
+    print(f.result())
+```
+
+### Edge cases
+
+!!! warning "Closed event loop"
+    If the running event loop closes before the underlying HPX future
+    completes, the bridge logs a `WARNING` on the `hpyx.aio` logger
+    and silently drops the result. The HPX worker thread is **not**
+    crashed — re-raising on a worker would tear down the runtime.
+
+!!! note "Cancellation is advisory"
+    `hpyx.Future.cancel()` only succeeds before the task has started
+    executing on an HPX worker (see spec §5.4). `await fut` after a
+    successful pre-start `cancel()` will raise the underlying result
+    or the cancellation flag depending on timing — full asyncio-style
+    cancellation propagation lands in v1.x.
+
+!!! warning "Don't call `set_result` / `set_exception`"
+    The base class methods `set_result`, `set_exception`, and
+    `set_running_or_notify_cancel` are overridden to raise
+    `RuntimeError` — the underlying state is owned by the HPX runtime
+    and must not be set externally. Code that previously relied on
+    these methods (e.g., custom executors) should hold their own
+    `asyncio.Future` or `concurrent.futures.Future` separately.
+
+### Asyncio bridge architecture
+
+```mermaid
+sequenceDiagram
+    participant U as Coroutine
+    participant L as asyncio loop (main thread)
+    participant HF as hpyx.Future
+    participant W as HPX worker thread
+    U->>HF: await fut (calls __await__)
+    HF->>L: loop.create_future() → aio_fut
+    HF->>HF: fut.add_done_callback(_on_done)
+    HF-->>U: yield aio_fut
+    note over W: HPX worker runs the task
+    W->>HF: hpx::shared_future fires
+    HF->>W: _drain runs user callbacks (FIFO)<br/>then _on_done
+    W->>L: loop.call_soon_threadsafe(_set)
+    L->>L: aio_fut.set_result(value)
+    L-->>U: resume coroutine
+```
 
 ## Parallel Processing with for_loop
 
