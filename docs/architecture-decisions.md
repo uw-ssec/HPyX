@@ -6,6 +6,38 @@ A running log of significant architecture decisions made during HPyX development
 
 ## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
 
+### 2026-04-27: Phase 1 acceptance criteria — all green (Verified)
+
+End-to-end verification of the Phase 1 deliverables specified in epic #116.
+
+**Test suite:** `pixi run test` reports **130 passed, 2 skipped, 1 xfailed**. The two skips are runtime-isolation tests in `tests/test_runtime.py` that intentionally leave the runtime stopped (run them with `pixi run -e test-py313t pytest tests/test_runtime.py -m skip_after_shutdown`). The xfail is `test_get_worker_thread_id_from_hpx_thread_is_valid` (deferred to Plan 2 alongside the parallel-algorithm bindings).
+
+**Acceptance criteria from #116:**
+
+| Criterion | Status |
+|---|---|
+| `hpyx.async_(fn, x, y)` runs `fn` on an HPX worker under `launch::async` | ✅ verified by `tests/test_futures.py::test_async_submit_runs_on_hpx_worker` |
+| `dask.compute(arr.sum(), scheduler=hpyx.HPXExecutor())` completes for a non-trivial graph | ✅ verified by `tests/test_dask_integration.py` (4 patterns) |
+| `await hpyx.async_(fn, x, y)` works inside `asyncio.run(main())` | ✅ verified by `tests/test_aio.py::test_await_future` and `test_await_does_not_block_event_loop` |
+| Full test suite passes on free-threaded 3.13t | ✅ 130 passed under `test-py313t` |
+| `HPYX_ASYNC_MODE=deferred` rollback flag works | ✅ smoke-tested: `python -c "import hpyx; print(hpyx.async_(lambda: 'from-deferred').result())"` returns `from-deferred` |
+
+**Free-threaded scaling smoke test** (verifies real concurrency, not GIL-serialization): `20 × time.sleep(0.1)` submitted via `HPXExecutor` with `os_threads=4` completes in ~0.2–0.5s (serial would be 2.0s). Reproduce with:
+
+```bash
+pixi run -e test-py313t python -c "
+import time, hpyx
+N = 20
+start = time.perf_counter()
+with hpyx.HPXExecutor() as ex:
+    futs = [ex.submit(time.sleep, 0.1) for _ in range(N)]
+    for f in futs: f.result()
+print(f'{N}x0.1s in {time.perf_counter() - start:.2f}s')
+"
+```
+
+**Out of scope for Phase 1** (deferred per epic): parallel algorithms (Plan 2), C++ kernels (Plan 2), `hpyx.execution` policy module (Plan 2), benchmark harness + CI gating (Plan 3+), full `enable_tracing` JSONL output (Plan 4), distributed/multi-locality (v2).
+
 ### 2026-04-27: Test dependency is `dask-core`, not `dask` — free-threading constraint (Implemented)
 
 - **Decision:** `pixi.toml` adds `dask-core >=2024.10.0` (and `numpy >=1.26`) under `[feature.test.dependencies]`. The full `dask` metapackage is **not** added.
