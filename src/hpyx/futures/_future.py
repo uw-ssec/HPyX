@@ -10,6 +10,7 @@ The wrapper is thin — most methods delegate directly to the C++ object.
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import threading
 from typing import Any, Callable, Optional
@@ -17,7 +18,7 @@ from typing import Any, Callable, Optional
 from hpyx import _core
 
 
-class Future:
+class Future(concurrent.futures.Future):
     """A future backed by the HPX runtime.
 
     Implements the ``concurrent.futures.Future`` protocol (``result``,
@@ -29,9 +30,10 @@ class Future:
     every Future wraps an ``hpx::shared_future``.
     """
 
-    __slots__ = ("_hpx", "_callbacks", "_callback_lock", "_callbacks_registered")
+    __slots__ = ()  # base class doesn't use __slots__; this saves nothing but documents intent
 
     def __init__(self, hpx_fut: "_core.futures.HPXFuture") -> None:
+        super().__init__()
         self._hpx = hpx_fut
         self._callbacks: list[Callable[["Future"], None]] | None = None
         self._callback_lock = threading.Lock()
