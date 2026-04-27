@@ -131,3 +131,13 @@ def shutdown() -> None:
 
 def is_running() -> bool:
     return _core.runtime.runtime_is_running()
+
+
+def running_os_threads() -> int | None:
+    """Return the os_threads of the running HPX runtime, or None if not started."""
+    if not _started:
+        return None
+    if _started_cfg is None:
+        return None
+    threads = _started_cfg.get("os_threads")
+    return int(threads) if threads is not None else None

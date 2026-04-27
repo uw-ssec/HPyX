@@ -30,6 +30,7 @@ benchmark-py313t = { features = [
 docs = { features = ["py313", "libhpx", "hpyx", "mkdocs"] }
 linting = ["py313", "lint"]
 py313t-src = {features = ["py313t", "hpx-src", "test", "benchmark"], solve-group = "py313t-src"}
+notebook = { features = ["py313", "libhpx", "hpyx", "build", "notebook"] }
 
 # === High-Level Project Tasks ===
 # Main tasks that users will typically run for development workflow
@@ -59,7 +60,7 @@ cxx-compiler = ">=1.8.0,<2"
 make = ">=4.4.1,<5"
 clang = ">=17.0.6,<18"
 nanobind = ">=2.7.0,<3"
-libboost-headers = ">=1.86.0,<2"
+libboost-devel = ">=1.86.0,<2"
 pip = ">=25.0.1,<26"
 # === End Core Project Dependencies ===
 
@@ -189,11 +190,39 @@ description = "Print versions of all installed dependencies and the HPyX package
 # Dependencies and tasks for running the test suite
 [feature.test.dependencies]
 pytest = ">=8.3.5,<9"
+dask-core = ">=2024.10.0"
+numpy = ">=1.26"
 
 [feature.test.tasks.run-test]
 cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
 description = "Execute the test suite with verbose output"
 # === End Test Configuration ===
+
+# === Notebook Configuration ===
+# Dependencies and tasks for running the Quickstart notebook interactively.
+# Uses regular (non-free-threaded) Python 3.13 because jupyterlab pulls in
+# CFFI transitively, which does not yet support free-threading.
+[feature.notebook.dependencies]
+jupyterlab = ">=4.2,<5"
+ipykernel = ">=6.29,<7"
+dask-core = ">=2024.10.0"
+numpy = ">=1.26"
+setuptools-scm = "*"
+
+[feature.notebook.tasks.lab]
+cmd = ["jupyter", "lab", "docs/quickstart.ipynb"]
+description = "Launch JupyterLab on the Quickstart notebook"
+
+[feature.notebook.tasks.execute-notebook]
+cmd = [
+    "jupyter", "nbconvert",
+    "--to", "notebook",
+    "--execute",
+    "--inplace",
+    "docs/quickstart.ipynb",
+]
+description = "Execute the Quickstart notebook in place to refresh outputs"
+# === End Notebook Configuration ===
 
 # === Benchmark Configuration ===
 # Dependencies and tasks for performance benchmarking

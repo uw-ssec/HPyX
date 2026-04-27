@@ -600,14 +600,14 @@ EOF
 
 ---
 
-## Task 4: Add `when_all`, `when_any`, `dataflow` combinators
+## Task 4: Add `when_all`, `when_any`, `dataflow`, `shared_future` combinators
 
 **Files:**
-- Modify: `src/_core/futures.cpp` (add three free functions)
+- Modify: `src/_core/futures.cpp` (add four free functions)
 - Modify: `src/_core/futures.hpp` (no change needed — `register_bindings` adds them)
 - Modify: `tests/test_futures.py` (add combinator tests)
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Append to `tests/test_futures.py`:
 
@@ -682,7 +682,7 @@ def test_dataflow_propagates_exception():
 Run: `pixi run -e test-py313t pytest tests/test_futures.py::test_when_all_returns_tuple_of_values -v`
 Expected: FAIL (`AttributeError: ... has no attribute 'when_all'`).
 
-- [ ] **Step 2: Implement in `src/_core/futures.cpp`**
+- [x] **Step 2: Implement in `src/_core/futures.cpp`**
 
 In the anonymous namespace at the top, add a helper for vector-of-futures:
 
@@ -821,7 +821,7 @@ Add to the includes in `futures.cpp`:
 #include <hpx/executors/dataflow.hpp>
 ```
 
-- [ ] **Step 3: Rebuild and test**
+- [x] **Step 3: Rebuild and test**
 
 ```bash
 pixi run -e test-py313t pip install --force-reinstall --no-build-isolation -ve .
@@ -830,7 +830,7 @@ pixi run -e test-py313t pytest tests/test_futures.py -v
 
 Expected: all tests (Steps 1 and prior) pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/_core tests/test_futures.py

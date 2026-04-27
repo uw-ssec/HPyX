@@ -1,6 +1,7 @@
 nav:
   - Overview:
       - Welcome to HPyX Documentation: index.md
+      - Quickstart: quickstart.ipynb
       - Usage Guide: usage.md
       - Architecture Decisions: architecture-decisions.md
   - API Reference: reference/api.md

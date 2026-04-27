@@ -9,11 +9,12 @@ def test_defaults_present():
         "cfg": [],
         "autoinit": True,
         "trace_path": None,
+        "async_mode": "async",
     }
 
 
 def test_from_env_empty(monkeypatch):
-    for k in ("HPYX_OS_THREADS", "HPYX_CFG", "HPYX_AUTOINIT", "HPYX_TRACE_PATH"):
+    for k in ("HPYX_OS_THREADS", "HPYX_CFG", "HPYX_AUTOINIT", "HPYX_TRACE_PATH", "HPYX_ASYNC_MODE"):
         monkeypatch.delenv(k, raising=False)
     assert config.from_env() == config.DEFAULTS
 
@@ -57,3 +58,33 @@ def test_from_env_autoinit(monkeypatch, value, expected):
 def test_from_env_trace_path(monkeypatch):
     monkeypatch.setenv("HPYX_TRACE_PATH", "/tmp/hpyx.jsonl")
     assert config.from_env()["trace_path"] == "/tmp/hpyx.jsonl"
+
+
+def test_defaults_include_async_mode():
+    assert config.DEFAULTS["async_mode"] == "async"
+
+
+def test_from_env_async_mode(monkeypatch):
+    monkeypatch.setenv("HPYX_ASYNC_MODE", "deferred")
+    assert config.from_env()["async_mode"] == "deferred"
+
+
+def test_from_env_async_mode_default(monkeypatch):
+    monkeypatch.delenv("HPYX_ASYNC_MODE", raising=False)
+    assert config.from_env()["async_mode"] == "async"
+
+
+def test_from_env_async_mode_invalid(monkeypatch):
+    monkeypatch.setenv("HPYX_ASYNC_MODE", "bogus")
+    with pytest.raises(ValueError, match="HPYX_ASYNC_MODE"):
+        config.from_env()
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("ASYNC", "async"),
+    ("DEFERRED", "deferred"),
+    ("  Deferred  ", "deferred"),
+])
+def test_from_env_async_mode_case_insensitive(monkeypatch, value, expected):
+    monkeypatch.setenv("HPYX_ASYNC_MODE", value)
+    assert config.from_env()["async_mode"] == expected

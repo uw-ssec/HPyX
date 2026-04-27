@@ -15,15 +15,25 @@ HPyX is a high-performance Python library providing bindings to the HPX C++ runt
 
 ## Getting Started
 
+!!! tip "Hands-on tour"
+    Prefer to learn by running code? Start with the
+    [**Quickstart notebook**](quickstart.ipynb) — a runnable walkthrough of
+    every Phase 1 feature in this guide.
+
 HPyX v1 auto-initializes the HPX runtime on first use — no setup boilerplate required:
 
 ```python
-from hpyx.futures import submit
+import hpyx
 from hpyx.multiprocessing import for_loop
 
 # Submit work asynchronously — runtime starts automatically
-future = submit(lambda x: x * x, 5)
-print(future.get())  # 25
+future = hpyx.async_(lambda x: x * x, 5)
+print(future.result())  # 25
+
+# Compose futures with the standard combinators
+f1 = hpyx.async_(lambda: 1)
+f2 = hpyx.async_(lambda: 2)
+print(hpyx.when_all(f1, f2).result())  # (1, 2)
 
 # Parallel iteration
 data = [1, 2, 3]

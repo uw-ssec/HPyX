@@ -7,12 +7,19 @@ try:
 except ImportError:
     __version__ = "0.0.0"
 
-from hpyx import _runtime, config, debug
+from hpyx import _runtime, aio, config, debug, futures, multiprocessing
 from hpyx._runtime import is_running, shutdown
-
 from hpyx.executor import HPXExecutor
+from hpyx.futures import (
+    Future,
+    async_,
+    dataflow,
+    ready_future,
+    shared_future,
+    when_all,
+    when_any,
+)
 from hpyx.runtime import HPXRuntime
-from hpyx import futures, multiprocessing
 
 
 def init(
@@ -20,23 +27,27 @@ def init(
     os_threads: int | None = None,
     cfg: list[str] | None = None,
 ) -> None:
-    """Explicitly start the HPX runtime. Idempotent within a process.
-
-    Raises RuntimeError if the runtime is already started with conflicting
-    config, or if the runtime was previously stopped (HPX cannot restart).
-    """
+    """Explicitly start the HPX runtime. Idempotent within a process."""
     _runtime.ensure_started(os_threads=os_threads, cfg=cfg)
 
 
 __all__ = [
+    "Future",
     "HPXExecutor",
     "HPXRuntime",
     "__version__",
+    "aio",
+    "async_",
     "config",
+    "dataflow",
     "debug",
     "futures",
     "init",
     "is_running",
     "multiprocessing",
+    "ready_future",
+    "shared_future",
     "shutdown",
+    "when_all",
+    "when_any",
 ]

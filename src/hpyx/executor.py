@@ -1,139 +1,126 @@
-# ruff: noqa: ARG002 # intentionally disabling ruff linting on this file, false positive flag
-"""
-HPXExecutor implementation for asynchronous task execution.
+"""hpyx.HPXExecutor — a concurrent.futures.Executor backed by HPX.
 
-This module provides the HPXExecutor class, which is a subclass of 
-concurrent.futures.Executor that allows for submitting tasks to the HPX 
-runtime system for parallel and asynchronous execution.
+All instances share one process-wide HPX runtime (HPX cannot host multiple
+runtimes in a single process). ``shutdown()`` marks this executor handle
+unusable but does not stop the runtime — atexit owns process-level
+teardown because HPX cannot restart in-process.
 
-The HPXExecutor manages the HPX runtime lifecycle and provides a familiar
-interface compatible with Python's concurrent.futures framework.
+Examples
+--------
+>>> import hpyx
+>>> with hpyx.HPXExecutor() as ex:
+...     fut = ex.submit(pow, 2, 10)
+...     print(fut.result())  # 1024
+
+For dask integration:
+
+>>> import dask.array as da
+>>> with hpyx.HPXExecutor() as ex:
+...     result = da.arange(1e6).sum().compute(scheduler=ex)
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from concurrent.futures import Executor, Future
+import threading
+import warnings
+from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import Executor
 from typing import Any
 
-import hpyx
+from hpyx import _runtime
+from hpyx.futures import Future, async_
 
 
 class HPXExecutor(Executor):
-    """
-    An Executor subclass for submitting tasks to the HPX runtime system.
-    
-    HPXExecutor provides an interface for asynchronous execution of functions
-    using the High Performance ParalleX (HPX) runtime. It manages the lifecycle
-    of tasks and allows for parallel computation with configurable runtime
-    parameters.
-    
-    This executor is compatible with Python's concurrent.futures interface,
-    making it easy to integrate HPX-based parallelism into existing code.
-    
-    Examples
-    --------
-    >>> def compute_square(x):
-    ...     return x * x
-    >>> with HPXExecutor(os_threads=4) as executor:
-    ...     future = executor.submit(compute_square, 10)
-    ...     result = future.result()
-    ...     print(result)  # Outputs: 100
-    
+    """A real ``concurrent.futures.Executor`` backed by HPX.
+
+    Parameters
+    ----------
+    max_workers : int | None, optional
+        Advisory. HPX's worker pool is process-global; ``max_workers``
+        seeds ``os_threads`` on the implicit init if the runtime isn't
+        started yet. If the runtime is already started with a different
+        ``os_threads``, a ``UserWarning`` is emitted and the existing
+        pool is used unchanged.
+
     Notes
     -----
-    This class is currently in active development and may undergo changes.
-    We recommend using the HPXRuntime context manager rather than this
-    executor directly for managing the HPX runtime lifecycle.
+    Multiple ``HPXExecutor`` instances share the process-global HPX
+    runtime. Calling ``.shutdown()`` on one handle does not affect
+    other handles or stop the runtime — ``atexit`` owns process-level
+    teardown because HPX cannot restart in-process.
     """
 
-    def __init__(
+    def __init__(self, max_workers: int | None = None) -> None:
+        self._closed = False
+        self._lock = threading.Lock()
+        if max_workers is None:
+            _runtime.ensure_started()
+            return
+        if _runtime.is_running():
+            running_threads = _runtime.running_os_threads()
+            if running_threads is not None and running_threads != max_workers:
+                warnings.warn(
+                    f"HPXExecutor(max_workers={max_workers}) differs from the "
+                    f"running HPX runtime's os_threads={running_threads}; "
+                    f"using the runtime pool as-is (HPX cannot be reconfigured "
+                    f"after start).",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        else:
+            _runtime.ensure_started(os_threads=max_workers)
+
+    def submit(
         self,
-        run_hpx_main: bool = True,
-        allow_unknown: bool = True,
-        aliasing: bool = False,
-        os_threads: int = 1,
-        diagnostics_on_terminate: bool = False,
-        tcp_enable: bool = False,
+        fn: Callable[..., Any],
+        /,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Future:
+        with self._lock:
+            closed = self._closed
+        if closed:
+            raise RuntimeError("cannot schedule new futures after shutdown")
+        return async_(fn, *args, **kwargs)
+
+    def map(
+        self,
+        fn: Callable[..., Any],
+        *iterables: Iterable[Any],
+        timeout: float | None = None,
+        chunksize: int = 1,  # noqa: ARG002 — accepted for protocol; unused (Plan 3 revisits)
+    ) -> Iterator[Any]:
+        # Submit every item eagerly, then yield results in order. This
+        # matches concurrent.futures.ThreadPoolExecutor.map semantics —
+        # silent truncation to the shortest iterable.
+        with self._lock:
+            closed = self._closed
+        if closed:
+            raise RuntimeError("cannot schedule new futures after shutdown")
+        futures = [self.submit(fn, *group) for group in zip(*iterables)]
+
+        def _iter() -> Iterator[Any]:
+            try:
+                for fut in futures:
+                    yield fut.result(timeout=timeout)
+            except GeneratorExit:
+                for fut in futures:
+                    fut.cancel()
+                raise
+
+        return _iter()
+
+    def shutdown(
+        self,
+        wait: bool = True,  # noqa: ARG002 — accepted for protocol; HPX shutdown is process-level
+        *,
+        cancel_futures: bool = False,  # noqa: ARG002 — accepted for protocol; not implemented in v1
     ) -> None:
-        """
-        Initialize the HPXExecutor with configurable runtime options.
+        # Per-handle shutdown. Does NOT stop the HPX runtime — atexit
+        # owns teardown because HPX cannot restart within a process.
+        with self._lock:
+            self._closed = True
 
-        Parameters
-        ----------
-        run_hpx_main : bool, default True
-            Whether to execute hpx_main function.
-        allow_unknown : bool, default True
-            Allow unknown command line options to be passed through.
-        aliasing : bool, default False
-            Enable HPX short command line option aliases.
-        os_threads : int, default 1
-            Number of OS threads for the HPX runtime to use.
-        diagnostics_on_terminate : bool, default False
-            Print diagnostic information during forced runtime termination.
-        tcp_enable : bool, default False
-            Enable the TCP parcelport for distributed computing.
-                
-        Notes
-        -----
-        The executor automatically initializes the HPX runtime with the 
-        provided configuration. Only one HPXExecutor should be active
-        at a time within a process.
-        """
-        from hpyx import _runtime
-        _runtime.ensure_started(os_threads=os_threads)
 
-    def submit(self: HPXExecutor, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
-        """
-        Submit a callable for asynchronous execution with given arguments.
-
-        Parameters
-        ----------
-        fn : callable
-            The callable to be executed. Must be serializable if used in
-            distributed contexts.
-        *args : tuple
-            Positional arguments to pass to the callable.
-        **kwargs : dict
-            Keyword arguments to pass to the callable.
-
-        Returns
-        -------
-        HPXFuture
-            An HPXFuture representing the execution of the callable. The future
-            can be used to retrieve the result when computation is complete or
-            to check execution status.
-            
-        Notes
-        -----
-        The returned future is compatible with Python's concurrent.futures
-        interface but uses HPX's asynchronous execution system internally.
-        """
-        fut: hpyx._core.HPXFuture = Future()
-        fut.set_running_or_notify_cancel()
-        fut._hpx_cont = hpyx._core.hpx_async_set_result(fut, fn, *args, **kwargs)
-        return fut
-
-    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
-        """
-        Signal the executor to stop accepting new tasks and shutdown.
-
-        Clean shutdown involves stopping the HPX runtime and optionally waiting
-        for running tasks to complete before termination.
-
-        Parameters
-        ----------
-        wait : bool, default True
-            If True, wait for currently running tasks to complete before
-            shutting down. If False, shutdown immediately.
-        cancel_futures : bool, default False
-            Currently not implemented. Reserved for future use
-            to cancel pending futures during shutdown.
-                
-        Notes
-        -----
-        After shutdown is called, no new tasks can be submitted to this
-        executor. The HPX runtime will be stopped and cannot be restarted
-        within the same process.
-        """
-        return None
+__all__ = ["HPXExecutor"]
