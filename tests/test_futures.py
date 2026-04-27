@@ -341,3 +341,33 @@ def test_then_passes_self_not_intermediate():
     # The captured Future must be the upstream itself (semantic equivalence
     # — same .result()).
     assert captured_futures[0].result() == 10
+
+
+# ---- HPYX_ASYNC_MODE rollback behavior ----
+#
+# These tests prove the C++ side actually honors the env var, separately from
+# the Python config layer (which only validates and lowercases the value).
+
+def test_async_mode_deferred_runs_in_caller_thread(monkeypatch):
+    """HPYX_ASYNC_MODE=deferred restores v0.x launch::deferred semantics.
+
+    Under deferred, hpx::async returns a future where the callable is not
+    scheduled — it runs synchronously when .result() is called, on the
+    calling thread. This is the documented rollback path per spec risk #1.
+    """
+    monkeypatch.setenv("HPYX_ASYNC_MODE", "deferred")
+    caller_tid = threading.get_ident()
+    fut = hpyx.async_(threading.get_ident)
+    # The callable runs synchronously on the caller thread when .result()
+    # is invoked, so the captured tid matches the caller's tid.
+    assert fut.result() == caller_tid
+
+
+def test_async_mode_default_runs_on_hpx_worker(monkeypatch):
+    """Default HPYX_ASYNC_MODE (async) runs the callable on an HPX worker."""
+    monkeypatch.delenv("HPYX_ASYNC_MODE", raising=False)
+    caller_tid = threading.get_ident()
+    fut = hpyx.async_(threading.get_ident)
+    worker_tid = fut.result()
+    # The callable runs on an HPX worker — different thread than the caller.
+    assert worker_tid != caller_tid
