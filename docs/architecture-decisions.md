@@ -6,6 +6,54 @@ A running log of significant architecture decisions made during HPyX development
 
 ## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
 
+### 2026-04-27: `HPXExecutor` is a true `concurrent.futures.Executor` subclass (Implemented)
+
+- **Decision:** `hpyx.HPXExecutor` inherits from `concurrent.futures.Executor` and implements `submit`, `map`, and `shutdown` directly. `submit(fn, /, *args, **kwargs)` returns `hpyx.async_(fn, *args, **kwargs)`. `__enter__`/`__exit__` are inherited from the stdlib base.
+- **Why:** The dask integration story (`dask.compute(arr.sum(), scheduler=HPXExecutor())`) only works if `isinstance(ex, concurrent.futures.Executor)` is true — dask's scheduler resolution checks the protocol structurally. Subclassing the stdlib base gives that for free, plus `loop.run_in_executor`, `asyncio.wrap_future`, and any third-party library that already targets the stdlib. The previous v0.x executor inherited from `Executor` but its `submit` was broken (referenced an unbound `hpx_async_set_result`); the rewrite makes that contract real.
+- **Result:** `tests/test_executor.py` confirms `issubclass(hpyx.HPXExecutor, concurrent.futures.Executor)`, basic `submit`/`map`/`shutdown` semantics, args/kwargs forwarding, and exception propagation. The dask smoke test ships in a follow-up task.
+
+### 2026-04-27: Per-handle `shutdown()`; `atexit` owns process-level HPX teardown (Implemented)
+
+- **Decision:** `HPXExecutor.shutdown()` sets `self._closed = True` and returns. It does not call `_runtime.shutdown()` and does not stop the HPX runtime. Subsequent `submit`/`map` on the same handle raise `RuntimeError("cannot schedule new futures after shutdown")`. Other live `HPXExecutor` handles continue to work. The HPX runtime itself only stops when the `atexit` handler fires at process exit.
+- **Why:** HPX is a process-global singleton: it cannot host multiple runtimes per process and cannot restart after a stop. Tying executor lifetime to runtime lifetime would mean a single `with HPXExecutor():` block ends the runtime forever, which is hostile to scripts that want multiple sequential `with` blocks. Decoupling per-handle shutdown from process-level teardown matches user mental models from `concurrent.futures.ThreadPoolExecutor` (where a shutdown thread pool's threads also disappear, but the *process* keeps running) while respecting HPX's hard restart constraint.
+- **Result:** `test_separate_handles_independent_shutdown` and `test_context_manager_shuts_down` confirm the per-handle semantics. `test_submit_after_shutdown_raises` and `test_map_after_shutdown_raises` confirm the post-shutdown error path. The error message intentionally matches the stdlib `ThreadPoolExecutor` exactly.
+
+### 2026-04-27: `max_workers` is advisory; mismatches with the running runtime warn instead of erroring (Implemented)
+
+- **Decision:** `HPXExecutor(max_workers=N)` does one of three things: (1) if the runtime is not yet started, seeds `_runtime.ensure_started(os_threads=N)`; (2) if the runtime is started with `os_threads=N` already, no-op; (3) if the runtime is started with a *different* `os_threads`, emit a `UserWarning` and use the existing pool unchanged. `max_workers=None` always just calls `ensure_started()` with no thread override.
+- **Why:** HPX's worker pool is process-global and cannot be reconfigured after start. A strict implementation that raised on mismatch would break legitimate use cases like "library X spins up an executor with `max_workers=8`, then library Y constructs a second one with `max_workers=4`" — both libraries should keep working, and only one of them gets to seed the pool. The warning surfaces the conflict so the user can correct it (typically by initializing the runtime explicitly with `hpyx.init(os_threads=...)` before either library imports), while still letting both libraries run.
+- **Result:** `test_max_workers_warning_when_mismatched` confirms the warning fires; `test_max_workers_matches_runtime_no_warning` confirms there's no warning when values match. The warning message names the actual running thread count and explains why HPX can't be reconfigured.
+
+### 2026-04-27: `_runtime.running_os_threads()` public accessor instead of `_started_cfg` private access (Implemented)
+
+- **Decision:** `src/hpyx/_runtime.py` exposes `running_os_threads() -> int | None` returning the currently-running runtime's `os_threads`, or `None` if the runtime is not started. `HPXExecutor.__init__` calls this instead of reaching into `_runtime._started_cfg["os_threads"]`.
+- **Why:** Reaching into a leading-underscore module-private dict is a code smell, and the original implementation wrapped it in a broad `try/except Exception # noqa: BLE001` to defend against schema drift. Exposing a typed accessor (a) eliminates the defensive try/except, (b) gives a clear contract for any future caller that needs the same information (Plan 3 will likely want it), (c) makes the executor-runtime boundary explicit.
+- **Result:** `test_running_os_threads_reflects_session_config` confirms the accessor returns the value passed to `hpyx.init(os_threads=...)`. The executor's `__init__` is two lines shorter and no longer touches private names.
+
+### 2026-04-27: `_closed` flag guarded by `threading.Lock` for free-threaded 3.13t (Implemented)
+
+- **Decision:** `HPXExecutor` keeps a `threading.Lock` on the instance. Reads of `self._closed` in `submit` / `map` and the write in `shutdown` are all done under the lock.
+- **Why:** Under GIL-mode CPython, single-attribute Python writes are effectively atomic. Under **free-threaded 3.13t** that is no longer guaranteed for the broader memory model — torn reads are theoretically possible, and stdlib `ThreadPoolExecutor` itself uses an explicit `_shutdown_lock` for the same flag. Explicitly locking matches stdlib behavior and removes a class of TOCTOU races where one thread sees `_closed=False` and submits a task while another thread is in the middle of `shutdown()`.
+- **Result:** The 50-thread cross-thread submit test continues to pass. The lock overhead is negligible (one acquire/release per `submit`/`shutdown` call).
+
+### 2026-04-27: `HPXExecutor.map` matches stdlib's silent-truncation `zip` (Implemented)
+
+- **Decision:** `HPXExecutor.map(fn, *iterables)` uses bare `zip(*iterables)`, which silently truncates to the shortest input. The earlier draft used `zip(*iterables, strict=True)` (which would raise `ValueError` on length mismatch), but we reverted to match stdlib `Executor.map`.
+- **Why:** Substitutability with `concurrent.futures.ThreadPoolExecutor` is the whole point of the v1 executor — dask, asyncio, and other consumers may pass iterables with different lengths and expect stdlib semantics. `strict=True` was the safer choice in isolation (catches a footgun) but the wrong choice for a drop-in replacement (changes a documented behavior). We chose substitutability and document the truncation behavior in the user guide.
+- **Result:** `test_map_truncates_to_shortest_iterable` pins the new behavior. `test_map_two_iterables` (lengths matched) continues to work unchanged.
+
+### 2026-04-27: `chunksize` accepted but unused; not deprecated, no warning (Implemented)
+
+- **Decision:** `HPXExecutor.map` accepts a `chunksize: int = 1` keyword for protocol parity but currently ignores it. No warning is emitted; the docstring notes the limitation.
+- **Why:** stdlib's `ThreadPoolExecutor.map` also ignores `chunksize` (only `ProcessPoolExecutor` honors it), so silent ignore is the conservative stdlib-aligned choice. Emitting a warning every time a user passes the parameter would create noise in code that targets `ProcessPoolExecutor.map` and was ported as-is. Real chunk-size tuning lives at the parallel-algorithm layer (`hpyx.parallel.for_loop(par, chunk_size=...)`) which lands in Plan 3.
+- **Result:** `# noqa: ARG002` suppresses lint complaints; the docstring tells users to pre-chunk manually if they need fine-grained control. No test assertion needed (silent no-op matches stdlib).
+
+### 2026-04-27: Drop legacy `hpyx.futures.submit` shim outright; no deprecation window (Implemented)
+
+- **Decision:** `src/hpyx/futures/_submit.py` and `tests/test_submit.py` are deleted. `hpyx.futures.__init__.py` no longer re-exports `submit`. The v0.x `from hpyx.futures import submit; submit(fn, ...).get()` pattern now raises `ImportError` immediately.
+- **Why:** The v0.x `submit` shim was already broken before this rewrite (it called the deferred-only `hpx_async`, returning a future that secretly ran on the calling thread). Keeping it around as a deprecation-warned shim would let user code keep limping along on the broken behavior. Deleting it forces an early visible failure (`ImportError` is louder than a warning) and pushes users to the new `hpyx.async_` / `HPXExecutor` API. The v1.0 release notes call this out as a breaking change; the migration is mechanical (`from hpyx.futures import submit` → `import hpyx`, `submit(fn, ...)` → `hpyx.async_(fn, ...)`, `.get()` → `.result()`).
+- **Result:** `tests/test_submit.py` is gone; coverage moved to `tests/test_executor.py` and `tests/test_futures.py`. `docs/usage.md` examples were rewritten to use the new API in the same commit, so the docs site has no broken examples on merge.
+
 ### 2026-04-24: `hpyx.Future` is a thin Python shell over `_core.futures.HPXFuture` (Implemented)
 
 - **Decision:** `src/hpyx/futures/_future.py::Future` wraps `_core.futures.HPXFuture` in a class with `__slots__ = ("_hpx", "_callbacks", "_callback_lock", "_callbacks_registered")`. Most methods (`result`, `exception`, `done`, `running`, `cancelled`, `cancel`, `share`) are one-line delegations to the C++ object. The wrapper is what users see as `hpyx.Future`.

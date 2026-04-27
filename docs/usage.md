@@ -13,11 +13,12 @@ This guide provides comprehensive examples and usage patterns for HPyX, the Pyth
 3. [Configuration](#configuration)
 4. [Diagnostics](#diagnostics)
 5. [Asynchronous Programming with Futures](#asynchronous-programming-with-futures)
-6. [Parallel Processing with for_loop](#parallel-processing-with-for_loop)
-7. [Working with NumPy](#working-with-numpy)
-8. [Error Handling](#error-handling)
-9. [Performance Considerations](#performance-considerations)
-10. [Best Practices](#best-practices)
+6. [The HPXExecutor](#the-hpxexecutor)
+7. [Parallel Processing with for_loop](#parallel-processing-with-for_loop)
+8. [Working with NumPy](#working-with-numpy)
+9. [Error Handling](#error-handling)
+10. [Performance Considerations](#performance-considerations)
+11. [Best Practices](#best-practices)
 
 ## Getting Started
 
@@ -29,6 +30,7 @@ HPyX provides a clean Python interface to HPX's parallel computing capabilities.
 - `hpyx.debug` — worker thread diagnostics
 - `hpyx.async_` / `hpyx.Future` — submit functions for asynchronous execution
 - `hpyx.when_all` / `hpyx.when_any` / `hpyx.dataflow` / `hpyx.shared_future` / `hpyx.ready_future` — future composition
+- `hpyx.HPXExecutor` — drop-in `concurrent.futures.Executor` (works with `asyncio.run_in_executor`, `dask.compute`, etc.)
 - `hpyx.multiprocessing.for_loop` — parallel iteration over collections
 
 ### Basic Import
@@ -543,6 +545,198 @@ graph LR
     WA -->|tuple of results| DF[hpyx.dataflow combiner]
     DF --> RES[final hpyx.Future]
 ```
+
+## The HPXExecutor
+
+`hpyx.HPXExecutor` is a real subclass of [`concurrent.futures.Executor`](https://docs.python.org/3/library/concurrent.futures.html#executor-objects), so it can be substituted into any code that already targets the standard library: `asyncio.run_in_executor`, `dask.compute(scheduler=ex)`, third-party schedulers, and so on. Internally, `submit` is a thin shim over [`hpyx.async_`](#the-pythonic-hpyxfuture-wrapper).
+
+### Basic usage
+
+```python
+import hpyx
+
+with hpyx.HPXExecutor() as ex:
+    fut = ex.submit(pow, 2, 10)
+    print(fut.result())  # 1024
+```
+
+The returned object is a `hpyx.Future` (which also conforms to the `concurrent.futures.Future` protocol). Pass it to `asyncio.wrap_future`, register `add_done_callback`, chain with `.then`, or call `.result(timeout=...)` directly.
+
+### `submit`
+
+```python
+import hpyx
+
+def worker(a, b, *, c=0):
+    return a + b + c
+
+with hpyx.HPXExecutor() as ex:
+    fut = ex.submit(worker, 1, 2, c=10)
+    assert fut.result() == 13
+```
+
+Exceptions raised in the callable propagate through `fut.result()`:
+
+```python
+with hpyx.HPXExecutor() as ex:
+    fut = ex.submit(lambda: 1 / 0)
+    fut.result()  # raises ZeroDivisionError
+```
+
+### `map`
+
+`map` submits every input item eagerly and yields results **in order**, matching `concurrent.futures.ThreadPoolExecutor.map` semantics:
+
+```python
+with hpyx.HPXExecutor() as ex:
+    squares = list(ex.map(lambda x: x * x, range(5)))
+    assert squares == [0, 1, 4, 9, 16]
+
+    pairs = list(ex.map(lambda a, b: a + b, range(5), range(5, 10)))
+    assert pairs == [5, 7, 9, 11, 13]
+```
+
+Per stdlib, `map` silently truncates to the shortest iterable when iterables have different lengths:
+
+```python
+with hpyx.HPXExecutor() as ex:
+    list(ex.map(lambda a, b: a + b, [1, 2, 3], [10, 20]))
+    # → [11, 22] (third element of the first iterable is dropped)
+```
+
+!!! warning "Eager submission"
+    `map` submits every item from the input iterables before yielding any
+    results. Do not call it with unbounded generators (e.g.,
+    `itertools.count()`) — you will exhaust memory.
+
+The `chunksize` keyword is accepted for protocol compatibility but currently
+ignored. Manual chunking remains the right tool for fine-grained tasks until
+HPyX's parallel-algorithm chunk-size tuning lands in a later phase.
+
+### `shutdown`
+
+```python
+ex = hpyx.HPXExecutor()
+fut = ex.submit(lambda: 42)
+ex.shutdown()       # marks this handle unusable
+fut.result()        # still works — already-submitted work runs to completion
+ex.submit(lambda: 1)
+# → RuntimeError: cannot schedule new futures after shutdown
+```
+
+`shutdown()` is per-handle and idempotent. It does **not** stop the HPX runtime — `atexit` owns process-level teardown because HPX cannot restart in-process.
+
+```python
+ex_a = hpyx.HPXExecutor()
+ex_b = hpyx.HPXExecutor()
+ex_a.shutdown()
+ex_b.submit(lambda: "ok").result()  # 'ok' — ex_b unaffected
+```
+
+The error message (`"cannot schedule new futures after shutdown"`) intentionally matches `concurrent.futures.ThreadPoolExecutor` so substitution into existing error-handling code does the right thing.
+
+### `max_workers`
+
+The constructor's `max_workers` argument seeds `os_threads` on the first runtime startup. Because HPX cannot be reconfigured after start, subsequent constructors with a different value emit a `UserWarning` and use the existing pool unchanged:
+
+```python
+import warnings
+import hpyx
+
+with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")
+    hpyx.init(os_threads=4)
+    hpyx.HPXExecutor(max_workers=99)
+    print(str(w[-1].message))
+    # 'HPXExecutor(max_workers=99) differs from the running HPX runtime's
+    #  os_threads=4; using the runtime pool as-is (HPX cannot be
+    #  reconfigured after start).'
+```
+
+Pass `max_workers=None` (the default) when you want the executor to inherit the runtime's existing thread count.
+
+### asyncio integration
+
+`HPXExecutor` is a stdlib-compatible executor, so it works directly with `loop.run_in_executor`:
+
+```python
+import asyncio
+import hpyx
+
+async def main():
+    loop = asyncio.get_running_loop()
+    with hpyx.HPXExecutor() as ex:
+        return await loop.run_in_executor(ex, pow, 2, 10)
+
+asyncio.run(main())  # 1024
+```
+
+(Direct `await hpyx.async_(fn)` syntax via `Future.__await__` ships in a
+follow-up task.)
+
+### dask integration
+
+```python
+import dask.array as da
+import hpyx
+
+with hpyx.HPXExecutor() as ex:
+    x = da.arange(1_000_000, chunks=50_000)
+    total = x.sum().compute(scheduler=ex)
+print(total)
+```
+
+This is the integration that motivated the v1 executor rewrite — making `HPXExecutor` a true `concurrent.futures.Executor` subclass means dask accepts it as a scheduler without any HPyX-side adapters.
+
+### Lifecycle relationship to the HPX runtime
+
+```mermaid
+sequenceDiagram
+    participant U as User code
+    participant E as HPXExecutor (handle)
+    participant R as hpyx._runtime
+    participant H as HPX runtime (process-global)
+    U->>E: HPXExecutor(max_workers=4)
+    E->>R: ensure_started(os_threads=4)
+    alt runtime not yet started
+        R->>H: runtime_start(['hpx.os_threads!=4', ...])
+        R->>R: register atexit shutdown
+    else runtime already started
+        R-->>E: idempotent — uses existing pool
+    end
+    U->>E: ex.submit(fn, *args)
+    E->>R: hpyx.async_(fn, *args)
+    R->>H: hpx::async(launch::async, task)
+    H-->>U: hpyx.Future
+    U->>E: ex.shutdown()
+    E->>E: self._closed = True (under lock)
+    note over H: HPX runtime keeps running
+    note over U,H: at process exit
+    H->>R: atexit handler fires
+    R->>H: runtime_stop()
+```
+
+### Cross-thread safety
+
+`HPXExecutor` is safe to share across Python threads:
+
+```python
+import threading
+import hpyx
+
+results = [None] * 50
+with hpyx.HPXExecutor() as ex:
+    def submit_and_wait(i):
+        results[i] = ex.submit(lambda x=i: x * 2).result()
+
+    ts = [threading.Thread(target=submit_and_wait, args=(i,)) for i in range(50)]
+    for t in ts: t.start()
+    for t in ts: t.join()
+
+assert results == [i * 2 for i in range(50)]
+```
+
+The `_closed` flag is guarded by an internal `threading.Lock`, so concurrent `submit`/`shutdown` from different threads is well-defined under free-threaded Python 3.13t.
 
 ## Parallel Processing with for_loop
 
