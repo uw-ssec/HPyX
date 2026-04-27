@@ -15,6 +15,11 @@ HPyX is a high-performance Python library providing bindings to the HPX C++ runt
 
 ## Getting Started
 
+!!! tip "Hands-on tour"
+    Prefer to learn by running code? Start with the
+    [**Quickstart notebook**](quickstart.ipynb) — a runnable walkthrough of
+    every Phase 1 feature in this guide.
+
 HPyX v1 auto-initializes the HPX runtime on first use — no setup boilerplate required:
 
 ```python
