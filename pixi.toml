@@ -189,6 +189,8 @@ description = "Print versions of all installed dependencies and the HPyX package
 # Dependencies and tasks for running the test suite
 [feature.test.dependencies]
 pytest = ">=8.3.5,<9"
+dask-core = ">=2024.10.0"
+numpy = ">=1.26"
 
 [feature.test.tasks.run-test]
 cmd = ["pytest", "--tb=short", "--disable-warnings", "-v"]
