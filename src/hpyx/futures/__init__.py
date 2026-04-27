@@ -65,11 +65,6 @@ __all__ = [
     "dataflow",
     "ready_future",
     "shared_future",
-    "submit",
     "when_all",
     "when_any",
 ]
-
-
-# Legacy export — removed in Task 6 (executor rewrite). Tests still rely on this.
-from hpyx.futures._submit import submit  # noqa: E402
