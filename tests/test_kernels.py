@@ -35,6 +35,18 @@ class TestDot:
         with pytest.raises(Exception):
             hpyx.kernels.dot(a, b)
 
+    def test_rejects_non_1d(self):
+        a = np.array([[1.0, 2.0], [3.0, 4.0]])
+        b = np.array([[5.0, 6.0], [7.0, 8.0]])
+        with pytest.raises(ValueError, match="1-dimensional"):
+            hpyx.kernels.dot(a, b)
+
+    def test_rejects_mixed_ndim(self):
+        a = np.array([1.0, 2.0, 3.0, 4.0])
+        b = np.array([[1.0, 2.0], [3.0, 4.0]])
+        with pytest.raises(ValueError, match="1-dimensional"):
+            hpyx.kernels.dot(a, b)
+
     def test_unsupported_dtype(self):
         a = np.array([1, 2], dtype=np.float16)
         b = np.array([3, 4], dtype=np.float16)

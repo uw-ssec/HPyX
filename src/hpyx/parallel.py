@@ -2,8 +2,8 @@
 and iterables.
 
 Every function takes a policy (from ``hpyx.execution``) as the first
-argument.  When the policy carries the ``task`` tag, the function returns
-an ``hpyx.Future[T]`` instead of the synchronous result.
+argument.  Task-tagged policies (e.g. ``par(task)``) are reserved for a
+future release; passing them currently raises ``NotImplementedError``.
 
 For ``par`` and ``par_unseq`` policies with Python callbacks, each iteration
 is submitted as an independent ``hpyx.async_`` task on an HPX worker thread.
@@ -19,7 +19,7 @@ from collections.abc import Callable, Iterable
 from typing import Any, Union
 
 from hpyx import _core, _runtime
-from hpyx.execution import _Policy
+from hpyx.execution import Policy
 from hpyx.futures import Future, async_
 
 
@@ -30,13 +30,13 @@ def _task_not_supported(name: str) -> str:
     )
 
 
-def _token_fields(policy: _Policy) -> tuple:
+def _token_fields(policy: Policy) -> tuple:
     t = policy._token()
     return (t.kind, t.task, t.chunk, t.chunk_size)
 
 
 def for_loop(
-    policy: _Policy,
+    policy: Policy,
     first: int,
     last: int,
     body: Callable[[int], None],
@@ -60,7 +60,7 @@ def for_loop(
 
 
 def for_each(
-    policy: _Policy,
+    policy: Policy,
     iterable: Any,
     fn: Callable[[Any], None],
 ) -> Union[None, Future]:
@@ -85,7 +85,7 @@ def for_each(
 
 
 def transform[T, U](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     fn: Callable[[T], U],
 ) -> list[U]:
@@ -102,7 +102,7 @@ def transform[T, U](
 
 
 def reduce[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     *,
     init: T,
@@ -118,7 +118,7 @@ def reduce[T](
 
 
 def transform_reduce[T, U](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     *,
     init: U,
@@ -144,7 +144,7 @@ def transform_reduce[T, U](
 # ---------------------------------------------------------------------------
 
 def count[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     value: T,
 ) -> int:
@@ -161,7 +161,7 @@ def count[T](
 
 
 def count_if[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     pred: Callable[[T], bool],
 ) -> int:
@@ -178,11 +178,15 @@ def count_if[T](
 
 
 def find[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     value: T,
 ) -> int:
-    """Return index of first element equal to ``value``, or -1."""
+    """Return index of first element equal to ``value``, or -1.
+
+    Note: under ``par``/``par_unseq``, all elements are evaluated before
+    results are checked — no short-circuit occurs.
+    """
     _runtime.ensure_started()
     if policy.task:
         raise NotImplementedError(_task_not_supported("find"))
@@ -201,11 +205,15 @@ def find[T](
 
 
 def find_if[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     pred: Callable[[T], bool],
 ) -> int:
-    """Return index of first element satisfying ``pred``, or -1."""
+    """Return index of first element satisfying ``pred``, or -1.
+
+    Note: under ``par``/``par_unseq``, all elements are evaluated before
+    results are checked — no short-circuit occurs.
+    """
     _runtime.ensure_started()
     if policy.task:
         raise NotImplementedError(_task_not_supported("find_if"))
@@ -224,11 +232,15 @@ def find_if[T](
 
 
 def all_of[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     pred: Callable[[T], bool],
 ) -> bool:
-    """Return True if ``pred`` is true for all elements."""
+    """Return True if ``pred`` is true for all elements.
+
+    Note: under ``par``/``par_unseq``, all predicates are launched before any
+    result is checked — no short-circuit occurs.
+    """
     _runtime.ensure_started()
     if policy.task:
         raise NotImplementedError(_task_not_supported("all_of"))
@@ -241,11 +253,15 @@ def all_of[T](
 
 
 def any_of[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     pred: Callable[[T], bool],
 ) -> bool:
-    """Return True if ``pred`` is true for any element."""
+    """Return True if ``pred`` is true for any element.
+
+    Note: under ``par``/``par_unseq``, all predicates are launched before any
+    result is checked — no short-circuit occurs.
+    """
     _runtime.ensure_started()
     if policy.task:
         raise NotImplementedError(_task_not_supported("any_of"))
@@ -258,11 +274,15 @@ def any_of[T](
 
 
 def none_of[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     pred: Callable[[T], bool],
 ) -> bool:
-    """Return True if ``pred`` is false for all elements."""
+    """Return True if ``pred`` is false for all elements.
+
+    Note: under ``par``/``par_unseq``, all predicates are launched before any
+    result is checked — no short-circuit occurs.
+    """
     _runtime.ensure_started()
     if policy.task:
         raise NotImplementedError(_task_not_supported("none_of"))
@@ -279,7 +299,7 @@ def none_of[T](
 # ---------------------------------------------------------------------------
 
 def sort[T](
-    policy: _Policy,
+    policy: Policy,
     data: Iterable[T],
     *,
     key: Callable[[T], Any] | None = None,
@@ -294,7 +314,7 @@ def sort[T](
 
 
 def stable_sort[T](
-    policy: _Policy,
+    policy: Policy,
     data: Iterable[T],
     *,
     key: Callable[[T], Any] | None = None,
@@ -313,7 +333,7 @@ def stable_sort[T](
 # ---------------------------------------------------------------------------
 
 def fill[T](
-    policy: _Policy,
+    policy: Policy,
     n: int,
     value: T,
 ) -> list[T]:
@@ -326,7 +346,7 @@ def fill[T](
 
 
 def fill_n[T](
-    policy: _Policy,
+    policy: Policy,
     n: int,
     value: T,
 ) -> list[T]:
@@ -335,7 +355,7 @@ def fill_n[T](
 
 
 def copy[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
 ) -> list[T]:
     """Return a new list copy of ``iterable``."""
@@ -347,7 +367,7 @@ def copy[T](
 
 
 def copy_if[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     pred: Callable[[T], bool],
 ) -> list[T]:
@@ -364,7 +384,7 @@ def copy_if[T](
 
 
 def iota(
-    policy: _Policy,
+    policy: Policy,
     n: int,
     start: int = 0,
 ) -> list[int]:
@@ -381,7 +401,7 @@ def iota(
 # ---------------------------------------------------------------------------
 
 def inclusive_scan[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     *,
     op: Callable[[T, T], T],
@@ -401,7 +421,7 @@ def inclusive_scan[T](
 
 
 def exclusive_scan[T](
-    policy: _Policy,
+    policy: Policy,
     iterable: Iterable[T],
     *,
     init: T,

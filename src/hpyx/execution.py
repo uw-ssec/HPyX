@@ -8,7 +8,9 @@ Usage
     hpyx.parallel.for_loop(par, 0, 1_000_000, fn)
     hpyx.parallel.for_loop(par.with_(static_chunk_size(10_000)), ...)
 
-    fut = hpyx.parallel.for_loop(par(task), 0, N, fn)  # returns Future
+Note: task-tagged policies (e.g. ``par(task)``) are reserved for a future
+release.  Passing them to any ``hpyx.parallel`` function currently raises
+``NotImplementedError``.
 """
 
 from __future__ import annotations
@@ -157,9 +159,13 @@ par = _Policy(name="par", kind=_KIND_PAR)
 par_unseq = _Policy(name="par_unseq", kind=_KIND_PAR_UNSEQ)
 unseq = _Policy(name="unseq", kind=_KIND_UNSEQ)
 
+# Public alias for type annotations.
+Policy = _Policy
+
 
 __all__ = [
     "ChunkSize",
+    "Policy",
     "auto_chunk_size",
     "dynamic_chunk_size",
     "guided_chunk_size",

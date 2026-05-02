@@ -1,4 +1,10 @@
-"""hpyx.kernels -- Pure C++ parallel kernels on ndarray data."""
+"""hpyx.kernels -- Pure C++ parallel kernels on ndarray data.
+
+Note: ``sum``, ``max``, and ``min`` shadow Python builtins.  Import them
+explicitly (e.g. ``from hpyx.kernels import sum as hsum``) or access via the
+module (``hpyx.kernels.sum``) to avoid masking the built-in names in calling
+code.
+"""
 
 from __future__ import annotations
 
@@ -34,6 +40,10 @@ def _ensure_contiguous(arr: np.ndarray, name: str = "array") -> None:
 def dot(a: np.ndarray, b: np.ndarray) -> float:
     """Parallel dot product of two 1-D arrays. Always returns float64."""
     _runtime.ensure_started()
+    if a.ndim != 1 or b.ndim != 1:
+        raise ValueError(
+            f"dot: both arrays must be 1-dimensional, got a.ndim={a.ndim} b.ndim={b.ndim}"
+        )
     _ensure_contiguous(a, "a")
     _ensure_contiguous(b, "b")
     fn = getattr(_core.kernels, f"dot_{_suffix(a)}")
@@ -65,7 +75,11 @@ def min(a: np.ndarray):
 
 
 def matmul(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-    """Matrix multiplication. Both inputs must be 2-D."""
+    """Matrix multiplication. Both inputs must be 2-D.
+
+    Currently delegates to NumPy's ``@`` operator rather than an HPX C++
+    kernel.  A native HPX implementation is a candidate for a future release.
+    """
     _runtime.ensure_started()
     _ensure_contiguous(A, "A")
     _ensure_contiguous(B, "B")

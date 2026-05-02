@@ -1,8 +1,6 @@
 #include "kernels.hpp"
 
 #include <nanobind/ndarray.h>
-#include <hpx/async.hpp>
-#include <hpx/future.hpp>
 #include <hpx/numeric.hpp>
 #include <hpx/algorithm.hpp>
 #include <hpx/execution.hpp>
@@ -10,7 +8,6 @@
 #include <cstdint>
 #include <functional>
 #include <stdexcept>
-#include <vector>
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -29,15 +26,13 @@ double dot_kernel(
     const T* b_data = b.data();
     std::size_t n = a.size();
     nb::gil_scoped_release release;
-    return hpx::async([=]() {
-        return hpx::transform_reduce(
-            hpx::execution::par,
-            a_data, a_data + n,
-            b_data,
-            0.0,
-            std::plus<>(),
-            [](T x, T y) -> double { return static_cast<double>(x) * static_cast<double>(y); });
-    }).get();
+    return hpx::transform_reduce(
+        hpx::execution::par,
+        a_data, a_data + n,
+        b_data,
+        0.0,
+        std::plus<>(),
+        [](T x, T y) -> double { return static_cast<double>(x) * static_cast<double>(y); });
 }
 
 template <typename T>
@@ -46,9 +41,7 @@ T sum_kernel(nb::ndarray<nb::numpy, const T, nb::c_contig> a)
     const T* data = a.data();
     std::size_t n = a.size();
     nb::gil_scoped_release release;
-    return hpx::async([=]() {
-        return hpx::reduce(hpx::execution::par, data, data + n, T(0), std::plus<>());
-    }).get();
+    return hpx::reduce(hpx::execution::par, data, data + n, T(0), std::plus<>());
 }
 
 template <typename T>
@@ -61,11 +54,9 @@ T max_val_kernel(nb::ndarray<nb::numpy, const T, nb::c_contig> a)
     std::size_t n = a.size();
     T init = data[0];
     nb::gil_scoped_release release;
-    return hpx::async([=]() {
-        return hpx::reduce(
-            hpx::execution::par, data, data + n, init,
-            [](T x, T y) { return x > y ? x : y; });
-    }).get();
+    return hpx::reduce(
+        hpx::execution::par, data, data + n, init,
+        [](T x, T y) { return x > y ? x : y; });
 }
 
 template <typename T>
@@ -78,11 +69,9 @@ T min_val_kernel(nb::ndarray<nb::numpy, const T, nb::c_contig> a)
     std::size_t n = a.size();
     T init = data[0];
     nb::gil_scoped_release release;
-    return hpx::async([=]() {
-        return hpx::reduce(
-            hpx::execution::par, data, data + n, init,
-            [](T x, T y) { return x < y ? x : y; });
-    }).get();
+    return hpx::reduce(
+        hpx::execution::par, data, data + n, init,
+        [](T x, T y) { return x < y ? x : y; });
 }
 
 void register_bindings(nb::module_& m)

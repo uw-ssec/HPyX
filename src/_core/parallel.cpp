@@ -1,24 +1,14 @@
 #include "parallel.hpp"
-#include "gil_macros.hpp"
-#include "policy_dispatch.hpp"
-#include "futures.hpp"
 #include "runtime.hpp"
-
-#include <hpx/algorithm.hpp>
-#include <hpx/parallel/algorithms/for_loop.hpp>
-#include <hpx/parallel/algorithms/for_each.hpp>
+// gil_macros.hpp and policy_dispatch.hpp are Phase 3 scaffolding (C++ dispatch
+// path); not used by the current Python-dispatcher implementation.
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/string.h>
 
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-
 #include <cstdint>
-#include <memory>
 #include <stdexcept>
-#include <vector>
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -39,8 +29,9 @@ void ensure_runtime() {
 // Sequential for_loop — called from the main Python thread with GIL held.
 // The Python wrapper dispatches par/par_unseq policies via hpyx.async_
 // to avoid free-threaded Python thread-state races in HPX's work-stealing.
+// Policy parameters are enforced by the Python dispatcher; C++ always runs seq.
 static void parallel_for_loop(
-    int kind, bool task_flag, int chunk, std::size_t chunk_size,
+    int /*kind*/, bool /*task_flag*/, int /*chunk*/, std::size_t /*chunk_size*/,
     std::int64_t first,
     std::int64_t last,
     nb::callable body)
@@ -52,8 +43,9 @@ static void parallel_for_loop(
 }
 
 // Sequential for_each — iterates and calls fn(item) for each element.
+// Policy parameters are enforced by the Python dispatcher; C++ always runs seq.
 static void parallel_for_each(
-    int kind, bool task_flag, int chunk, std::size_t chunk_size,
+    int /*kind*/, bool /*task_flag*/, int /*chunk*/, std::size_t /*chunk_size*/,
     nb::iterable iterable,
     nb::callable body)
 {
