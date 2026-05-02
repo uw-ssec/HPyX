@@ -16,6 +16,8 @@ import warnings
 from collections.abc import Callable, Iterable
 from typing import Literal
 
+import numpy as np
+
 from hpyx import _core, _runtime
 from hpyx.execution import par as _par, seq as _seq
 
@@ -23,13 +25,6 @@ from hpyx.execution import par as _par, seq as _seq
 def for_loop(
     function: Callable, iterable: Iterable, policy: Literal["seq", "par"] = "seq"
 ) -> None:
-    warnings.warn(
-        "hpyx.multiprocessing.for_loop is deprecated and will be removed in a "
-        "future release. Use hpyx.parallel.for_each(policy, iterable, fn) "
-        "instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     """
     Execute a function over an iterable using HPX's parallel for_loop.
 
@@ -69,8 +64,23 @@ def for_loop(
     ...     for_loop(square_inplace, enumerate(data), policy="seq")
     ...     print(data)  # data is now modified
     """
+    warnings.warn(
+        "hpyx.multiprocessing.for_loop is deprecated and will be removed in a "
+        "future release. Use hpyx.parallel.for_each(policy, iterable, fn) "
+        "instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    if policy not in {"seq", "par"}:
+        raise ValueError(f"policy must be 'seq' or 'par', got {policy!r}")
     exec_policy = _par if policy == "par" else _seq
     _runtime.ensure_started()
-    t = exec_policy._token()
-    _core.parallel.for_each(t.kind, t.task, t.chunk, t.chunk_size,
-                            iterable, function)
+    if isinstance(iterable, (list, np.ndarray)):
+        # Preserve the deprecated transform-and-store contract: for list and
+        # ndarray inputs, write function's return value back to each position.
+        for i, item in enumerate(iterable):
+            iterable[i] = function(item)
+    else:
+        t = exec_policy._token()
+        _core.parallel.for_each(t.kind, t.task, t.chunk, t.chunk_size,
+                                iterable, function)
