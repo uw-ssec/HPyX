@@ -37,7 +37,14 @@ and naming):
    `@pytest.mark.parametrize("hpx_threads", [1, 2, 4, 8], indirect=True)`.
    Tests skip when fewer cores available.
 7. **Free-threading gating** — benchmarks that assert speedup under
-   nogil decorate with `@requires_free_threading`.
+   nogil import and apply `requires_free_threading` from `helpers.py`:
+
+   ```python
+   from helpers import requires_free_threading
+
+   @requires_free_threading
+   def test_my_bench(benchmark): ...
+   ```
 
 ## Profiling recipes
 

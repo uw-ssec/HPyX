@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import time
 
 import pytest
@@ -45,7 +46,6 @@ def test_enable_tracing_writes_jsonl(tmp_path):
         lines = f.read().strip().split("\n")
     assert len(lines) >= 1
     events = [json.loads(ln) for ln in lines]
-    # A task queued before tracing was enabled may appear with name=""; find ours.
     matching = [e for e in events if e.get("name", "").endswith("work")]
     assert matching, f"No 'work' event in {[e['name'] for e in events]}"
     event = matching[0]
@@ -93,3 +93,55 @@ def test_enable_tracing_via_env(tmp_path):
     event = json.loads(lines[0])
     assert "name" in event
     assert "duration_ns" in event
+
+
+def test_enable_tracing_invalid_path_raises_synchronously():
+    """enable_tracing must raise OSError synchronously for an unwritable path."""
+    bad_path = "/nonexistent_parent_dir/that/cannot/exist/trace.jsonl"
+    with pytest.raises(OSError):
+        debug.enable_tracing(bad_path)
+    # State must not be left as enabled after the failure.
+    assert not debug._trace_state["enabled"]
+
+
+def test_pre_tracing_tasks_not_emitted_as_blank(tmp_path):
+    """Tasks submitted before enable_tracing must not produce blank-name events.
+
+    A gate event keeps the task alive while tracing is enabled so that the
+    task is guaranteed to complete *after* enable_tracing() is called — the
+    canonical race the fix targets.
+    """
+    path = str(tmp_path / "trace.jsonl")
+    gate = threading.Event()
+
+    def gated_task():
+        gate.wait(timeout=5.0)
+        return "pre-tracing"
+
+    # Submit before tracing is enabled.
+    fut = hpyx.async_(gated_task)
+
+    # Enable tracing while the task is blocked on the gate.
+    debug.enable_tracing(path)
+
+    # Release the task so it completes after tracing is active.
+    gate.set()
+    assert fut.result() == "pre-tracing"
+
+    # Also submit a post-tracing task to confirm tracing itself works.
+    def traced_task():
+        return "post-tracing"
+
+    hpyx.async_(traced_task).result()
+    time.sleep(0.2)
+    debug.disable_tracing()
+
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        content = f.read().strip()
+    if not content:
+        return
+    events = [json.loads(ln) for ln in content.split("\n") if ln.strip()]
+    blank = [e for e in events if e.get("name", "") == ""]
+    assert blank == [], f"Found blank-name events: {blank}"

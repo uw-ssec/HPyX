@@ -83,6 +83,16 @@ def enable_tracing(path: Optional[str] = None) -> None:
             "enable_tracing requires a path argument or HPYX_TRACE_PATH env var"
         )
 
+    # Validate the path is openable synchronously so callers get an immediate
+    # error instead of a silent failure inside the daemon drain thread.
+    try:
+        with open(path, "a"):
+            pass
+    except OSError as exc:
+        raise OSError(
+            f"enable_tracing: cannot open trace path {path!r}: {exc}"
+        ) from exc
+
     _runtime.ensure_started()
     _core.tracing.enable()
     stop_event = threading.Event()

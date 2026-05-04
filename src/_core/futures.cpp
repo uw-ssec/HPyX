@@ -279,9 +279,12 @@ HPXFuture async_submit(nb::callable fn, nb::handle call_args, nb::handle call_kw
     if (!PyDict_Check(call_kwargs.ptr()))
         throw std::runtime_error("async_submit: kwargs must be a dict");
 
-    // Capture task name for tracing before releasing the GIL.
+    // Capture the trace flag and task name at submission time (GIL held).
+    // Using the submission-time flag — not re-checking at completion — prevents
+    // tasks queued before enable_tracing() from emitting blank-name events.
+    bool trace_this_task = hpyx::tracing::is_enabled();
     std::string task_name;
-    if (hpyx::tracing::is_enabled()) {
+    if (trace_this_task) {
         PyObject* name_obj = PyObject_GetAttrString(fn.ptr(), "__qualname__");
         if (!name_obj) {
             PyErr_Clear();
@@ -309,7 +312,7 @@ HPXFuture async_submit(nb::callable fn, nb::handle call_args, nb::handle call_kw
     auto policy = resolve_launch_policy();
     nb::gil_scoped_release release;
     auto fut = hpx::async(policy,
-        [safe_fn, safe_args, safe_kw, task_name]() -> PyPayload {
+        [safe_fn, safe_args, safe_kw, task_name, trace_this_task]() -> PyPayload {
             // Record start time before acquiring the GIL.
             using clock = std::chrono::steady_clock;
             auto start = clock::now();
@@ -339,8 +342,9 @@ HPXFuture async_submit(nb::callable fn, nb::handle call_args, nb::handle call_kw
             }
             PyGILState_Release(gs);
 
-            // Record tracing event after releasing the GIL (zero cost if disabled).
-            if (hpyx::tracing::is_enabled()) {
+            // Record tracing event only for tasks where tracing was enabled at
+            // submission; avoids blank-name events from pre-tracing queued tasks.
+            if (trace_this_task) {
                 auto end = clock::now();
                 hpyx::tracing::record(hpyx::tracing::TraceEvent{
                     task_name,

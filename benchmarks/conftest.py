@@ -9,7 +9,7 @@ Authoring contract (all benchmarks must follow):
 4. Module-level `pytestmark = pytest.mark.benchmark(group="<topic>")`.
 5. Minimize Python overhead unless measuring it (document otherwise).
 6. Thread-scaling parametrization: [1, 2, 4, 8] via `hpx_threads`.
-7. Free-threading gating via `requires_free_threading`.
+7. Free-threading gating via `requires_free_threading` from benchmarks/helpers.py.
 """
 
 from __future__ import annotations
@@ -18,21 +18,33 @@ import contextlib
 import gc
 import os
 import platform
-import sys
-import sysconfig
 import warnings
 
 import pytest
+
+from helpers import requires_free_threading  # noqa: F401 — re-exported for conftest users
+
+
+# Number of HPX OS threads started by hpx_runtime. Kept here so pin_cpu can
+# select the same count without importing hpyx before the runtime starts.
+_BENCH_OS_THREADS = 4
 
 
 # ---- Fixture 1: pin_cpu (Linux only; macOS no-op; Windows no-op) ----
 
 @pytest.fixture(scope="session", autouse=True)
 def pin_cpu():
-    """Pin the benchmarking process to CPU 0 on Linux for stable timing."""
+    """Pin the benchmarking process to a CPU set on Linux for stable timing.
+
+    Selects up to ``_BENCH_OS_THREADS`` CPUs from the current allowed affinity
+    mask so that parallel/free-threading benchmarks can exercise real hardware
+    concurrency instead of all threads contending on one core.
+    """
     if platform.system() == "Linux":
         try:
-            os.sched_setaffinity(0, {0})
+            current_mask = os.sched_getaffinity(0)
+            pinned = set(sorted(current_mask)[:_BENCH_OS_THREADS])
+            os.sched_setaffinity(0, pinned)
         except (AttributeError, OSError):
             pass
     yield
@@ -88,7 +100,7 @@ def hpx_runtime():
     """
     import hpyx
 
-    hpyx.init(os_threads=4)
+    hpyx.init(os_threads=_BENCH_OS_THREADS)
     yield
     # atexit handles teardown; don't call hpyx.shutdown() here.
 
@@ -116,15 +128,6 @@ def hpx_threads(request):
             f"host has {available} CPUs, benchmark requires {requested}"
         )
     yield requested
-
-
-# ---- Fixture 6: requires_free_threading (marker + skip) ----
-
-requires_free_threading = pytest.mark.skipif(
-    not sysconfig.get_config_var("Py_GIL_DISABLED"),
-    reason="Benchmark requires free-threaded Python 3.13t "
-           "(sysconfig.get_config_var('Py_GIL_DISABLED') == 1)",
-)
 
 
 # ---- Fixture 7: env_sanity_check (session, autouse) ----
