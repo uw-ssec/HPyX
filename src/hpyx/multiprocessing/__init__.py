@@ -1,22 +1,26 @@
-"""
-HPyX multiprocessing subpackage for parallel execution utilities.
+"""hpyx.multiprocessing — DEPRECATED.
 
-This subpackage provides support for parallel and multiprocessing-style
-computation in HPyX. It includes utilities that leverage HPX's parallel
-algorithms to provide efficient execution across multiple cores.
+This subpackage is deprecated and will be removed in a future release.
+Use ``hpyx.parallel`` instead, which provides a richer set of parallel
+algorithms (for_each, for_loop, transform, reduce, etc.) with explicit
+execution policies from ``hpyx.execution``.
 
-The multiprocessing module offers familiar interfaces for parallel computation
-while utilizing HPX's advanced runtime system for optimal performance.
-
-Important
----------
-All functions in this module require an active HPX runtime. Use the
-HPXRuntime context manager to ensure proper initialization and cleanup
-of the HPX runtime system before calling any functions from this module.
+Migration:
+    Old: ``hpyx.multiprocessing.for_loop(fn, iterable, policy="par")``
+    New: ``hpyx.parallel.for_each(hpyx.execution.par, iterable, fn)``
 """
 
 from __future__ import annotations
 
+import warnings as _warnings
+
 from ._for_loop import for_loop
+
+_warnings.warn(
+    "hpyx.multiprocessing is deprecated and will be removed in a future release. "
+    "Use hpyx.parallel instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 __all__ = ["for_loop"]
