@@ -41,10 +41,14 @@ def test_enable_tracing_writes_jsonl(tmp_path):
     finally:
         debug.disable_tracing()
 
-    lines = open(path).read().strip().split("\n")
+    with open(path) as f:
+        lines = f.read().strip().split("\n")
     assert len(lines) >= 1
-    event = json.loads(lines[0])
-    assert event["name"].endswith("work")
+    events = [json.loads(ln) for ln in lines]
+    # A task queued before tracing was enabled may appear with name=""; find ours.
+    matching = [e for e in events if e.get("name", "").endswith("work")]
+    assert matching, f"No 'work' event in {[e['name'] for e in events]}"
+    event = matching[0]
     assert event["worker_thread_id"] >= 0
     assert event["duration_ns"] > 0
     assert "start_ns" in event
@@ -83,7 +87,8 @@ def test_enable_tracing_via_env(tmp_path):
         debug.disable_tracing()
         os.environ.pop("HPYX_TRACE_PATH", None)
 
-    lines = open(path).read().strip().split("\n")
+    with open(path) as f:
+        lines = f.read().strip().split("\n")
     assert len(lines) >= 1
     event = json.loads(lines[0])
     assert "name" in event
