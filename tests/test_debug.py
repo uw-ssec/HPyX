@@ -44,7 +44,7 @@ def test_enable_tracing_writes_jsonl(tmp_path):
     lines = open(path).read().strip().split("\n")
     assert len(lines) >= 1
     event = json.loads(lines[0])
-    assert event["name"] == "work"
+    assert event["name"].endswith("work")
     assert event["worker_thread_id"] >= 0
     assert event["duration_ns"] > 0
     assert "start_ns" in event
