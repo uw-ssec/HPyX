@@ -230,8 +230,8 @@ description = "Execute the Quickstart notebook in place to refresh outputs"
 pytest-benchmark = ">=5.1.0,<6"
 threadpoolctl = ">=3.6.0,<4"
 py-spy = ">=0.4.0,<1"
-memray = ">=1.6.0,<2"
-scalene = ">=1.5.0,<2"
+# Note: memray (Linux-only) and scalene have no cp313t (free-threaded) conda-forge
+# builds — install them manually when profiling: pip install memray scalene
 
 [feature.benchmark.tasks.run-benchmark]
 args = [{ "arg" = "keyword_expression", "default" = "" }]

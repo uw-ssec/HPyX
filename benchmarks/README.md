@@ -58,7 +58,11 @@ py-spy record --native --rate 500 -o flame.svg -- \
 
 ### Scalene (per-line Python vs native)
 
+`scalene` has no free-threaded (`cp313t`) conda-forge build. Install it manually
+into the benchmark environment before use:
+
 ```bash
+pixi run -e benchmark-py313t pip install scalene
 pixi run -e benchmark-py313t \
     scalene --html --outfile scalene.html -- \
     -m pytest benchmarks/test_bench_kernels.py -k dot
@@ -66,7 +70,11 @@ pixi run -e benchmark-py313t \
 
 ### memray (allocation flame graphs)
 
+`memray` is Linux-only and has no free-threaded (`cp313t`) conda-forge build.
+Install it manually before use:
+
 ```bash
+pixi run -e benchmark-py313t pip install memray
 pixi run -e benchmark-py313t \
     python -m memray run --native -o memray.bin \
     -m pytest benchmarks/test_bench_executor.py::test_executor_map_hpyx
