@@ -92,6 +92,7 @@ nanobind_add_module(
   src/_core/futures.cpp
   src/_core/kernels.cpp
   src/_core/parallel.cpp
+  src/_core/tracing.cpp
 )
 
 # TODO: Add new modules here, maybe even HPX modules?

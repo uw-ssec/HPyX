@@ -17,6 +17,7 @@
 #include "futures.hpp"
 #include "kernels.hpp"
 #include "parallel.hpp"
+#include "tracing.hpp"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -39,6 +40,9 @@ NB_MODULE(_core, m)
 
     auto m_parallel = m.def_submodule("parallel");
     hpyx::parallel::register_bindings(m_parallel);
+
+    auto m_tracing = m.def_submodule("tracing");
+    hpyx::tracing::register_bindings(m_tracing);
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

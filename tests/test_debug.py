@@ -1,5 +1,10 @@
+import json
+import os
+import time
+
 import pytest
 
+import hpyx
 from hpyx import debug
 
 
@@ -16,14 +21,70 @@ def test_get_worker_thread_id_from_python_thread_is_minus_one():
 
 
 def test_get_worker_thread_id_from_hpx_thread_is_valid():
-    pytest.xfail("HPXExecutor is rewritten in Plan 2")
+    # Worker thread id from an HPX thread must be >= 0.
+    fut = hpyx.async_(lambda: debug.get_worker_thread_id())
+    result = fut.result()
+    assert result >= 0
 
 
-def test_enable_tracing_is_stubbed():
-    with pytest.raises(NotImplementedError, match="v1.x"):
-        debug.enable_tracing("/tmp/hpyx.jsonl")
+def test_enable_tracing_writes_jsonl(tmp_path):
+    path = str(tmp_path / "trace.jsonl")
+    debug.enable_tracing(path)
+    try:
+        def work(x):
+            return x * 2
 
-
-def test_disable_tracing_is_stubbed():
-    with pytest.raises(NotImplementedError, match="v1.x"):
+        fut = hpyx.async_(work, 42)
+        assert fut.result() == 84
+        # Give the drain thread time to flush.
+        time.sleep(0.3)
+    finally:
         debug.disable_tracing()
+
+    lines = open(path).read().strip().split("\n")
+    assert len(lines) >= 1
+    event = json.loads(lines[0])
+    assert event["name"] == "work"
+    assert event["worker_thread_id"] >= 0
+    assert event["duration_ns"] > 0
+    assert "start_ns" in event
+
+
+def test_enable_tracing_without_path_or_env_raises():
+    os.environ.pop("HPYX_TRACE_PATH", None)
+    with pytest.raises(ValueError, match="path"):
+        debug.enable_tracing()
+
+
+def test_enable_tracing_twice_raises(tmp_path):
+    path = str(tmp_path / "trace.jsonl")
+    debug.enable_tracing(path)
+    try:
+        with pytest.raises(RuntimeError, match="already enabled"):
+            debug.enable_tracing(path)
+    finally:
+        debug.disable_tracing()
+
+
+def test_disable_tracing_idempotent():
+    debug.disable_tracing()  # noop
+    debug.disable_tracing()  # still noop
+
+
+def test_enable_tracing_via_env(tmp_path):
+    path = str(tmp_path / "env_trace.jsonl")
+    os.environ["HPYX_TRACE_PATH"] = path
+    try:
+        debug.enable_tracing()  # no path arg — uses env var
+        fut = hpyx.async_(lambda: 1)
+        fut.result()
+        time.sleep(0.3)
+    finally:
+        debug.disable_tracing()
+        os.environ.pop("HPYX_TRACE_PATH", None)
+
+    lines = open(path).read().strip().split("\n")
+    assert len(lines) >= 1
+    event = json.loads(lines[0])
+    assert "name" in event
+    assert "duration_ns" in event
