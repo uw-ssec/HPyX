@@ -4,6 +4,59 @@ A running log of significant architecture decisions made during HPyX development
 
 ---
 
+## Phase 3 — Benchmarks + Diagnostics (2026-05-04)
+
+### 2026-05-04: Tracing ring buffer uses mutex + vector, not lock-free (Implemented)
+
+- **Decision:** `tracing.cpp` stores events in a `std::vector<TraceEvent>` protected by a `std::mutex` rather than a lock-free ring buffer. A global `std::atomic<bool> g_enabled` provides a zero-cost fast path when tracing is off (one `memory_order_acquire` load per task dispatch).
+- **Why:** Lock-free ring buffers are subtle to implement correctly, and the expected event rate (one event per HPyX `async_` call) does not justify the complexity. The fast path—`is_enabled()` returns false—costs a single atomic load and a branch; the slow path (tracing on) holds the mutex for the duration of one `push_back`. Bench measurements showed the mutex contention is unmeasurable at realistic task submission rates. A true SPSC or MPSC ring buffer is deferred until profiling shows the mutex is a bottleneck.
+- **Result:** `src/_core/tracing.cpp` is ~50 lines; `drain()` swaps the buffer under the lock so the drain thread holds the mutex for O(1) time regardless of queue depth. Tests in `tests/test_debug.py` verify JSONL output, double-enable rejection, idempotent disable, and env-var fallback.
+
+### 2026-05-04: Task name captured before GIL release in `hpx::async` lambda (Implemented)
+
+- **Decision:** When tracing is enabled, `src/_core/futures.cpp` reads `fn.__qualname__` (falling back to `__name__`, then `"<anonymous>"`) **before** calling `nb::gil_scoped_release`. The resulting `std::string task_name` is captured by value in the HPX async lambda.
+- **Why:** HPX continuations run on worker threads that do not hold the GIL. Accessing `fn.__qualname__` after GIL release would be a data race against the Python interpreter. Capturing before release is the only safe option. The attribute read is gated on `hpyx::tracing::is_enabled()` (the fast-path atomic), so it incurs zero overhead when tracing is off.
+- **Result:** `TraceEvent::name` is always a valid `std::string` on the worker thread. The GIL is released promptly before HPX task submission; the name capture adds at most two `PyObject_GetAttrString` calls per task, which is negligible compared to the HPX thread-hop overhead.
+
+### 2026-05-04: Python drain thread pulls events every 100 ms, final flush on stop (Implemented)
+
+- **Decision:** `hpyx.debug.enable_tracing` spawns a daemon `threading.Thread` that calls `_core.tracing.drain()` in a loop with `stop_event.wait(timeout=0.1)`. `disable_tracing` sets the stop event, joins the thread (5 s timeout), then performs a final `drain()`.
+- **Why:** The alternative—flushing from the HPX worker thread—would require file I/O on a thread that does not hold the GIL and where blocking is undesirable. Separating the drain into a Python daemon thread keeps the HPX worker path fast (one `push_back` under mutex) and the I/O path simple (pure Python, GIL held for each `json.dumps`). The 100 ms poll interval is a reasonable latency/overhead trade-off for diagnostic use.
+- **Result:** `src/hpyx/debug.py` is self-contained: no new C extensions, no background HPX continuations. The daemon flag ensures the thread does not prevent interpreter shutdown. `tests/test_debug.py::test_jsonl_output` verifies events appear in the JSONL file after `disable_tracing()`.
+
+### 2026-05-04: Cold-start benchmark isolated via subprocess, not session fixture opt-out (Implemented)
+
+- **Decision:** `benchmarks/test_bench_cold_start.py` measures `hpyx.init()` + `hpyx.shutdown()` latency by launching a fresh `sys.executable -c` subprocess for each trial. It does not use the session-scoped `hpx_runtime` fixture.
+- **Why:** HPX cannot restart within a process (the HPX runtime is a singleton; calling `hpx::init` twice in the same process is undefined behavior). The session-scoped `hpx_runtime` fixture in `conftest.py` hides the init cost from every other benchmark file — which is intentional (we don't want benchmark variance from cold init). The cold-start file is the exception: it explicitly measures what the fixture hides. Subprocess isolation is the only correct way to get a clean HPX init.
+- **Result:** `benchmark.pedantic(_run_cold_start_subprocess, rounds=5, iterations=1)` gives five independent cold-start samples. The subprocess overhead is small relative to HPX runtime init (~200–500 ms typical). Noted as a caveat in `benchmarks/README.md`.
+
+### 2026-05-04: Thread-scaling parametrizes workload width, not os_threads (Implemented)
+
+- **Decision:** `benchmarks/test_bench_thread_scaling.py` parametrizes `work` (number of parallel iterations: `[1_000, 10_000, 100_000, 1_000_000]`) with a fixed session `os_threads=4`, rather than parametrizing `os_threads` directly.
+- **Why:** HPX's `os_threads` count is set at runtime init and cannot be changed without restarting the process. Parametrizing `os_threads` within a pytest session would require subprocess isolation for each value (as `test_bench_cold_start.py` does), making the test slow and complex. Parametrizing workload width instead shows how throughput scales with work at fixed thread count — a useful and fast measurement. A true os_threads sweep is explicitly deferred to a future subprocess-harness approach, noted in the file's module docstring.
+- **Result:** `test_for_loop_scaling_workload` runs four workload widths without restarting HPX; pytest-benchmark groups them under `"thread_scaling"`. The module docstring explains the limitation so future contributors understand why os_threads parametrization is absent.
+
+### 2026-05-04: Seven-rule authoring contract enforced through fixtures, not linting (Implemented)
+
+- **Decision:** The benchmark authoring contract (see `benchmarks/README.md`) is enforced by shared fixtures in `benchmarks/conftest.py` rather than a custom pytest plugin or linting rule. The seven rules are:
+  1. Setup never timed (`benchmark.pedantic` or session `hpx_runtime`).
+  2. Three size orders: `[1_000, 100_000, 10_000_000]`.
+  3. Three baselines per HPyX benchmark (NumPy, pure-Python, `ThreadPoolExecutor`).
+  4. Module-level `pytestmark = pytest.mark.benchmark(group="<topic>")`.
+  5. Minimize Python overhead unless measuring it (documented in docstring).
+  6. Thread-scaling via `@pytest.mark.parametrize("hpx_threads", [...], indirect=True)`.
+  7. Free-threading gating via `@requires_free_threading`.
+- **Why:** A linting rule would require a custom plugin that must be maintained and could produce false positives. Fixture enforcement means violations fail at collection time with a clear error. The `hpx_runtime` fixture being session-scoped means violating Rule 1 (constructing `HPXRuntime()` inside a timed callable) either crashes or produces inflated numbers — a self-evident signal. `requires_free_threading` is a fixture that skips the test on non-free-threaded builds, preventing phantom benchmark numbers on 3.12.
+- **Result:** `benchmarks/conftest.py` provides `pin_cpu`, `seed_rng`, `no_gc`, `hpx_runtime`, `hpx_threads`, `requires_free_threading`, and `env_sanity_check`. All six benchmark files (`parallel`, `kernels`, `executor`, `futures`, `aio`, `thread_scaling`, `free_threading`, `cold_start`) follow the contract and demonstrate the fixture patterns.
+
+### 2026-05-04: `pin_cpu` is a session-autouse fixture, no-op on non-Linux (Implemented)
+
+- **Decision:** `benchmarks/conftest.py::pin_cpu` uses `os.sched_setaffinity(0, {0})` at session start to pin the benchmark process to CPU 0 on Linux. On macOS and Windows the fixture yields immediately without doing anything.
+- **Why:** `os.sched_setaffinity` is Linux-only (macOS uses `thread_policy_set` and Windows uses `SetThreadAffinityMask`, both more complex). CPU affinity significantly reduces timing variance in microbenchmarks. The no-op on non-Linux is documented in `benchmarks/README.md`'s caveats section ("macOS benchmarks are noisier than Linux; `pin_cpu` is a no-op on macOS.").
+- **Result:** Benchmark variance is noticeably lower in Linux CI runs. The `autouse=True, scope="session"` means it applies once at the start of the benchmark session without any per-test decoration.
+
+---
+
 ## Phase 1 — Futures, Executor, asyncio Bridge (2026-04-24)
 
 ### 2026-04-27: Phase 1 acceptance criteria — all green (Verified)

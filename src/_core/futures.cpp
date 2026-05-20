@@ -1,5 +1,6 @@
 #include "futures.hpp"
 #include "runtime.hpp"
+#include "tracing.hpp"
 
 #include <hpx/async.hpp>
 #include <hpx/async_combinators/when_all.hpp>
@@ -278,6 +279,27 @@ HPXFuture async_submit(nb::callable fn, nb::handle call_args, nb::handle call_kw
     if (!PyDict_Check(call_kwargs.ptr()))
         throw std::runtime_error("async_submit: kwargs must be a dict");
 
+    // Capture the trace flag and task name at submission time (GIL held).
+    // Using the submission-time flag — not re-checking at completion — prevents
+    // tasks queued before enable_tracing() from emitting blank-name events.
+    bool trace_this_task = hpyx::tracing::is_enabled();
+    std::string task_name;
+    if (trace_this_task) {
+        PyObject* name_obj = PyObject_GetAttrString(fn.ptr(), "__qualname__");
+        if (!name_obj) {
+            PyErr_Clear();
+            name_obj = PyObject_GetAttrString(fn.ptr(), "__name__");
+        }
+        if (name_obj) {
+            const char* s = PyUnicode_AsUTF8(name_obj);
+            if (s) task_name = s;
+            Py_DECREF(name_obj);
+        } else {
+            PyErr_Clear();
+            task_name = "<anonymous>";
+        }
+    }
+
     // Wrap fn/args/kwargs in GIL-safe shared_ptrs so the lambda's captures
     // can be destroyed on an HPX worker thread without holding the GIL.
     Py_INCREF(fn.ptr());
@@ -290,7 +312,11 @@ HPXFuture async_submit(nb::callable fn, nb::handle call_args, nb::handle call_kw
     auto policy = resolve_launch_policy();
     nb::gil_scoped_release release;
     auto fut = hpx::async(policy,
-        [safe_fn, safe_args, safe_kw]() -> PyPayload {
+        [safe_fn, safe_args, safe_kw, task_name, trace_this_task]() -> PyPayload {
+            // Record start time before acquiring the GIL.
+            using clock = std::chrono::steady_clock;
+            auto start = clock::now();
+
             // Attach this HPX worker thread to the Python interpreter.
             PyGILState_STATE gs = PyGILState_Ensure();
             PyPayload result;
@@ -315,6 +341,21 @@ HPXFuture async_submit(nb::callable fn, nb::handle call_args, nb::handle call_kw
                 result = box_current_exception();
             }
             PyGILState_Release(gs);
+
+            // Record tracing event only for tasks where tracing was enabled at
+            // submission; avoids blank-name events from pre-tracing queued tasks.
+            if (trace_this_task) {
+                auto end = clock::now();
+                hpyx::tracing::record(hpyx::tracing::TraceEvent{
+                    task_name,
+                    hpyx::tracing::current_worker_thread_id(),
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        start.time_since_epoch()).count(),
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        end - start).count(),
+                });
+            }
+
             return result;
         }).share();
     return HPXFuture(std::move(fut));
