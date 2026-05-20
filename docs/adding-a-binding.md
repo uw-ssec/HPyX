@@ -38,10 +38,11 @@ and register it in `bind.cpp`):
 
 ```cpp
 // Policy parameters arrive as individual integers matching _Token in
-// hpyx.execution (kind, task, chunk, chunk_size). Convert to PolicyToken
-// so dispatch_policy can select the right HPX execution policy.
+// hpyx.execution (kind, task, chunk, chunk_size). The C++ layer always
+// uses hpx::execution::par directly; policy dispatch is handled at the
+// Python level. Parameters are accepted but intentionally ignored here.
 static double sum_of_squares(
-    int kind, bool task_flag, int chunk, std::size_t chunk_size,
+    int /*kind*/, bool /*task_flag*/, int /*chunk*/, std::size_t /*chunk_size*/,
     nb::iterable src_it)
 {
     ensure_runtime();
@@ -49,19 +50,11 @@ static double sum_of_squares(
     for (auto item : src_it) {
         src.push_back(nb::cast<double>(item));
     }
-    hpyx::policy::PolicyToken tok{
-        static_cast<hpyx::policy::Kind>(kind),
-        task_flag,
-        static_cast<hpyx::policy::ChunkKind>(chunk),
-        chunk_size
-    };
     HPYX_KERNEL_NOGIL;       // release the GIL for the HPX call
-    return hpyx::policy::dispatch_policy(tok, [&](auto&& policy) {
-        return hpx::transform_reduce(
-            policy, src.begin(), src.end(), 0.0,
-            std::plus<>{},                       // reduction op
-            [](double x) { return x * x; });     // transform op
-    });
+    return hpx::transform_reduce(
+        hpx::execution::par, src.begin(), src.end(), 0.0,
+        std::plus<>{},                       // reduction op
+        [](double x) { return x * x; });     // transform op
 }
 ```
 
@@ -71,8 +64,11 @@ Key points:
   `double`) — they never touch `nb::object`, so this is safe.
 - If your transform op needs Python (e.g., `pred(x)`), use
   `HPYX_CALLBACK_GIL` inside the lambda. See `count_if` for reference.
-- `dispatch_policy` handles seq/par/par_unseq + chunk-size modifiers.
-  You just write one lambda that accepts `auto&& policy`.
+- The policy parameters (`kind`, `task_flag`, `chunk`, `chunk_size`) are
+  accepted in the signature to match the calling convention Python expects,
+  but the C++ layer uses `hpx::execution::par` unconditionally. If you need
+  seq/par_unseq support, add a Python-level branch or a separate C++
+  overload.
 
 ### Step 2: Register the binding
 

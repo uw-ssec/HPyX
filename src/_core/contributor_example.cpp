@@ -6,7 +6,6 @@
 
 #include "contributor_example.hpp"
 #include "gil_macros.hpp"
-#include "policy_dispatch.hpp"
 #include "runtime.hpp"
 
 #include <hpx/numeric.hpp>
@@ -40,9 +39,10 @@ void ensure_runtime() {
 
 // Callback-track example: sum of squares via transform_reduce.
 // Follows the same calling convention as parallel.cpp — individual policy
-// fields rather than a struct — so the Python wrapper can use _token_fields().
+// fields so the Python wrapper can use _token_fields(). The C++ layer always
+// runs hpx::execution::par; task dispatch is handled at the Python level.
 static double sum_of_squares(
-    int kind, bool task_flag, int chunk, std::size_t chunk_size,
+    int /*kind*/, bool /*task_flag*/, int /*chunk*/, std::size_t /*chunk_size*/,
     nb::iterable src_it)
 {
     ensure_runtime();
@@ -50,19 +50,11 @@ static double sum_of_squares(
     for (auto item : src_it) {
         src.push_back(nb::cast<double>(item));
     }
-    hpyx::policy::PolicyToken tok{
-        static_cast<hpyx::policy::Kind>(kind),
-        task_flag,
-        static_cast<hpyx::policy::ChunkKind>(chunk),
-        chunk_size
-    };
     HPYX_KERNEL_NOGIL;
-    return hpyx::policy::dispatch_policy(tok, [&](auto&& policy) {
-        return hpx::transform_reduce(
-            policy, src.begin(), src.end(), 0.0,
-            std::plus<>{},
-            [](double x) { return x * x; });
-    });
+    return hpx::transform_reduce(
+        hpx::execution::par, src.begin(), src.end(), 0.0,
+        std::plus<>{},
+        [](double x) { return x * x; });
 }
 
 // Kernel-track example: L2-norm squared over a numpy ndarray.
