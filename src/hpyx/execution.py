@@ -8,9 +8,11 @@ Usage
     hpyx.parallel.for_loop(par, 0, 1_000_000, fn)
     hpyx.parallel.for_loop(par.with_(static_chunk_size(10_000)), ...)
 
-Note: task-tagged policies (e.g. ``par(task)``) are reserved for a future
-release.  Passing them to any ``hpyx.parallel`` function currently raises
-``NotImplementedError``.
+Note: task-tagged policies (e.g. ``par(task)``) are supported by
+``hpyx.parallel.sort``, ``hpyx.parallel.stable_sort``, and
+``hpyx.parallel.transform_reduce``, which return a Future.  Other
+``hpyx.parallel`` functions raise ``NotImplementedError`` for task-tagged
+policies.
 """
 
 from __future__ import annotations

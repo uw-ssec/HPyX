@@ -21,12 +21,13 @@ env:
 
 jobs:
   checks:
-    name: Test on ${{ matrix.runs-on }}
+    name: Test on ${{ matrix.runs-on }} / ${{ matrix.python }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
         runs-on: [ubuntu-latest, macos-14]
+        python: [py313, py313t]
         # Note: Windows support is experimental and requires additional setup.
         # Uncomment the following lines to enable Windows testing.
         # include:
@@ -42,7 +43,7 @@ jobs:
           pixi-version: v0.67.2
           cache: true
       - name: Test package
-        run: pixi run test
+        run: pixi run -e test-${{ matrix.python }} run-test
 
   nightly-vendor-debug:
     name: Nightly vendor HPX + Debug build

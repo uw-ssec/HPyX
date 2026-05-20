@@ -2,8 +2,10 @@
 and iterables.
 
 Every function takes a policy (from ``hpyx.execution``) as the first
-argument.  Task-tagged policies (e.g. ``par(task)``) are reserved for a
-future release; passing them currently raises ``NotImplementedError``.
+argument.  Task-tagged policies (e.g. ``par(task)``) are supported by
+:func:`sort`, :func:`stable_sort`, and :func:`transform_reduce`, which return
+a :class:`~hpyx.futures.Future`; other algorithms raise ``NotImplementedError``
+for task-tagged policies.
 
 For ``par`` and ``par_unseq`` policies with Python callbacks, each iteration
 is submitted as an independent ``hpyx.async_`` task on an HPX worker thread.
@@ -117,6 +119,21 @@ def reduce[T](
     return functools.reduce(op, items, init)
 
 
+def _transform_reduce_body(
+    policy: Policy,
+    items: list,
+    init,
+    reduce_op,
+    transform_op,
+):
+    if policy.name in ("par", "par_unseq"):
+        futs = [async_(transform_op, item) for item in items]
+        transformed = [f.result() for f in futs]
+    else:
+        transformed = [transform_op(item) for item in items]
+    return functools.reduce(reduce_op, transformed, init)
+
+
 def transform_reduce[T, U](
     policy: Policy,
     iterable: Iterable[T],
@@ -124,19 +141,17 @@ def transform_reduce[T, U](
     init: U,
     reduce_op: Callable[[U, U], U],
     transform_op: Callable[[T], U],
-) -> U:
-    """Transform each element with ``transform_op`` then reduce with ``reduce_op``."""
-    _runtime.ensure_started()
-    if policy.task:
-        raise NotImplementedError(_task_not_supported("transform_reduce"))
+) -> Union[U, Future]:
+    """Transform each element with ``transform_op`` then reduce with ``reduce_op``.
 
+    With a ``task``-tagged policy the entire computation is submitted as a
+    single HPX task and a :class:`~hpyx.futures.Future` is returned.
+    """
+    _runtime.ensure_started()
     items = list(iterable)
-    if policy.name in ("par", "par_unseq"):
-        futs = [async_(transform_op, item) for item in items]
-        transformed = [f.result() for f in futs]
-    else:
-        transformed = [transform_op(item) for item in items]
-    return functools.reduce(reduce_op, transformed, init)
+    if policy.task:
+        return async_(_transform_reduce_body, policy, items, init, reduce_op, transform_op)
+    return _transform_reduce_body(policy, items, init, reduce_op, transform_op)
 
 
 # ---------------------------------------------------------------------------
