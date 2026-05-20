@@ -109,7 +109,7 @@ static nb::list sort_impl(
     if (has_key) {
         keys.resize(n);
         for (std::size_t i = 0; i < n; ++i) {
-            PyObject* k = PyObject_CallOneArg(key_fn.ptr(), items[i]);
+            PyObject* k = PyObject_CallFunctionObjArgs(key_fn.ptr(), items[i], nullptr);
             if (!k) {
                 // Cleanup keys computed so far then propagate.
                 for (std::size_t j = 0; j < i; ++j) Py_DECREF(keys[j]);
