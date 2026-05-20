@@ -66,9 +66,9 @@ df.groupby("worker_thread_id")["duration_ns"].describe()
 | `HPYX_OS_THREADS` | Initial worker count (default: `os.cpu_count()`). |
 | `HPYX_AUTOINIT` | `0` disables implicit init; explicit `hpyx.init(...)` is required. |
 | `HPYX_CFG` | Semicolon-separated extra HPX config strings. |
-| `HPYX_ASYNC_MODE` | `deferred` for v0.x rollback; default is `async` (v1 behavior). |
+| `HPYX_ASYNC_MODE` | `deferred` for v2025.8.28 rollback; default is `async` (v2026.5.20 behavior). |
 
-## What's NOT in v1 diagnostics
+## What's NOT in v2026.5.20 diagnostics
 
 - Full APEX / HPX performance counter surface.
 - Real-time task viewer / dashboard.

@@ -1,11 +1,11 @@
-# Migrating from HPyX 0.x to 1.0
+# Migrating from HPyX v2025.8.28 to v2026.5.20
 
-HPyX 1.0 is a clean-break rewrite. Most existing v0.x code is either
-broken (the v0.x `HPXExecutor.submit` referenced an unbound symbol and
-crashed) or uses APIs that did not actually parallelize (v0.x
-`hpx_async` used `launch::deferred`). v1.0 fixes these and introduces
-a Pythonic surface aligned with `concurrent.futures`, asyncio, and
-dask.
+HPyX v2026.5.20 is a clean-break rewrite of the initial `v2025.8.28` release.
+Most `v2025.8.28` code is either broken (`HPXExecutor.submit` referenced an
+unbound symbol and crashed) or did not actually parallelize (`hpx_async` used
+`launch::deferred`, running on the calling thread). v2026.5.20 fixes all of
+this and introduces a Pythonic surface aligned with `concurrent.futures`,
+asyncio, and dask.
 
 ## TL;DR
 
@@ -19,30 +19,30 @@ dask.
 
 ### 1. `hpx_async` no longer uses `launch::deferred`
 
-**Before (v0.x):**
+**Before (v2025.8.28):**
 ```python
 fut = hpyx._core.hpx_async(slow_function, arg1, arg2)
 # Nothing happens until .get() — the callable runs in the calling thread.
 result = fut.get()
 ```
 
-**After (v1.0):**
+**After (v2026.5.20):**
 ```python
 fut = hpyx.async_(slow_function, arg1, arg2)
 # Already running on an HPX worker thread.
 result = fut.result()
 ```
 
-Emergency rollback: set `HPYX_ASYNC_MODE=deferred` to restore v0.x
-semantics. Feature flag will be removed in v1.1 — fix any code that
+Emergency rollback: set `HPYX_ASYNC_MODE=deferred` to restore `v2025.8.28`
+semantics. This flag will be removed in a future release — fix any code that
 depended on deferred-evaluation timing.
 
 ### 2. `hpyx.HPXExecutor` is now real
 
-**Before (v0.x):** `executor.submit()` crashed (referenced unbound
+**Before (v2025.8.28):** `executor.submit()` crashed (referenced unbound
 `hpx_async_set_result`).
 
-**After (v1.0):** works like `concurrent.futures.ThreadPoolExecutor`:
+**After (v2026.5.20):** works like `concurrent.futures.ThreadPoolExecutor`:
 
 ```python
 with hpyx.HPXExecutor() as ex:
@@ -76,7 +76,8 @@ with hpyx.HPXExecutor() as ex:
 
 ### 4. `hpyx.multiprocessing.for_loop` deprecated
 
-Still works in v1.0 with a `DeprecationWarning`; removed in v1.1.
+Still works in v2026.5.20 with a `DeprecationWarning`; will be removed in a
+future release.
 
 **Before:**
 ```python
@@ -113,12 +114,12 @@ result = hpyx.kernels.dot(a, b)
 
 ### 6. `hpyx.HPXRuntime` exit is now a no-op
 
-**Before:** exiting the context manager shut down HPX.
+**Before (v2025.8.28):** exiting the context manager shut down HPX.
 
-**After:** exiting does nothing — `atexit` owns shutdown. This matters
-only if you had code that expected `HPXRuntime()` to reset the runtime;
-that was never actually safe (HPX cannot restart within a process), and
-v1 documents it explicitly.
+**After (v2026.5.20):** exiting does nothing — `atexit` owns shutdown. This
+matters only if you had code that expected `HPXRuntime()` to reset the
+runtime; that was never actually safe (HPX cannot restart within a process),
+and v2026.5.20 documents it explicitly.
 
 ## Non-breaking additions
 

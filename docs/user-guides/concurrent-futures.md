@@ -47,7 +47,7 @@ teardown.
 ### 3. Cancellation is limited
 
 `future.cancel()` returns `True` only if the task hadn't started yet.
-Mid-flight cancellation isn't supported in v1.
+Mid-flight cancellation isn't supported in v2026.5.20.
 
 ## Composing beyond stdlib
 

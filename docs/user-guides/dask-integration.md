@@ -47,7 +47,7 @@ with hpyx.HPXExecutor() as ex:
 
 ## When to keep using dask's default
 
-- **Distributed workloads** — HPyX v1 is single-process. Use
+- **Distributed workloads** — HPyX v2026.5.20 is single-process. Use
   `dask.distributed.Client`.
 - **Process-based parallelism for GIL-bound code on GIL-mode 3.13** —
   `scheduler='processes'` avoids the GIL entirely at the cost of

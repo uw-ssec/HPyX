@@ -25,10 +25,10 @@ HPyX.
 | `hpx::get_num_worker_threads` | `hpyx.debug.get_num_worker_threads()` |
 | `hpx::get_worker_thread_num` | `hpyx.debug.get_worker_thread_id()` |
 
-## What's NOT bound (v1)
+## What's NOT bound (v2026.5.20)
 
 - `hpx::mutex`, `hpx::latch`, `hpx::barrier`, `hpx::channel`, etc.
-  (synchronization primitives are v1.x).
+  (synchronization primitives are planned for a future release).
 - `hpx::fork_join_executor`, `hpx::limiting_executor`, `hpx::annotating_executor`.
 - `hpx::resource::partitioner` (custom thread pools).
 - `hpx::stop_token` / real cancellation.

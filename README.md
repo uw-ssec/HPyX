@@ -22,7 +22,7 @@
 - **Integrating with:** [dask](docs/user-guides/dask-integration.md) · [asyncio](docs/user-guides/asyncio.md)
 - **Running on free-threaded 3.13t:** [guide](docs/user-guides/free-threaded.md)
 - **Diagnostics and tracing:** [guide](docs/user-guides/diagnostics.md)
-- **Coming from v0.x?** See the [migration guide](docs/migration-0.x-to-1.0.md).
+- **Coming from v2025.8.28?** See the [migration guide](docs/migration-v2025.8.28-to-v2026.5.20.md).
 - **Contributing?** Start with [adding-a-binding.md](docs/adding-a-binding.md).
 
 ## Project Overview

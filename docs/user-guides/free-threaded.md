@@ -56,7 +56,7 @@ Numpy ≥ 2.0 is largely 3.13t-compatible but some operations still hold
 internal locks. If your `hpyx.parallel.*` body calls such an operation,
 you'll see partial serialization.
 
-As of HPyX v1 (April 2026), consult the upstream numpy docs for
+As of HPyX v2026.5.20, consult the upstream numpy docs for
 currently-locked operations — this changes as numpy improves.
 
 When in doubt, switch hot paths to `hpyx.kernels.*` (pure C++, no numpy
