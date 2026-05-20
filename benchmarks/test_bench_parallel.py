@@ -121,3 +121,50 @@ def test_reduce_numpy(benchmark, size):
     """NumPy sum baseline."""
     data = np.arange(size)
     benchmark(lambda: int(data.sum()))
+
+
+# ---- sort benchmarks ----
+
+pytestmark_sort = pytest.mark.benchmark(group="parallel.sort")
+
+SORT_SIZES = [1_000, 100_000, 1_000_000]
+
+
+@pytest.mark.parametrize("size", SORT_SIZES)
+@pytestmark_sort
+def test_sort_par_hpyx(benchmark, size):
+    """HPyX parallel sort (hpx::sort par policy)."""
+    import random
+    data = list(range(size))
+    random.shuffle(data)
+
+    def run():
+        hpyx.parallel.sort(par, data)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("size", SORT_SIZES)
+@pytestmark_sort
+def test_sort_seq_hpyx(benchmark, size):
+    """HPyX sequential sort (hpx::sort seq policy)."""
+    import random
+    from hpyx.execution import seq
+    data = list(range(size))
+    random.shuffle(data)
+
+    def run():
+        hpyx.parallel.sort(seq, data)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("size", SORT_SIZES)
+@pytestmark_sort
+def test_sort_pure_python(benchmark, size):
+    """Pure-Python sorted() baseline."""
+    import random
+    data = list(range(size))
+    random.shuffle(data)
+
+    benchmark(sorted, data)

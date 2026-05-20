@@ -304,13 +304,24 @@ def sort[T](
     *,
     key: Callable[[T], Any] | None = None,
     reverse: bool = False,
-) -> list[T]:
-    """Return a new sorted list."""
-    _runtime.ensure_started()
-    if policy.task:
-        raise NotImplementedError(_task_not_supported("sort"))
+) -> Union[list[T], Future]:
+    """Return a new sorted list, dispatching to hpx::sort.
 
-    return sorted(data, key=key, reverse=reverse)
+    For ``par`` / ``par_unseq`` policies, hpx::sort with a parallel execution
+    policy is used.  With Python-object comparisons the GIL still serializes
+    individual comparisons, so throughput gains over ``seq`` are visible only
+    when the collection contains types whose C++ ``<`` operator can run GIL-free
+    (see hpyx.kernels for pure-C++ numeric kernels).
+
+    With a ``task``-tagged policy the sort is submitted as a single HPX task and
+    a :class:`~hpyx.futures.Future` is returned.
+    """
+    _runtime.ensure_started()
+    items = list(data)
+    kind, _, chunk, chunk_size = _token_fields(policy)
+    if policy.task:
+        return async_(_core.parallel.sort, kind, False, chunk, chunk_size, items, key, reverse, False)
+    return _core.parallel.sort(kind, False, chunk, chunk_size, items, key, reverse, False)
 
 
 def stable_sort[T](
@@ -319,13 +330,19 @@ def stable_sort[T](
     *,
     key: Callable[[T], Any] | None = None,
     reverse: bool = False,
-) -> list[T]:
-    """Return a new sorted list (stable)."""
-    _runtime.ensure_started()
-    if policy.task:
-        raise NotImplementedError(_task_not_supported("stable_sort"))
+) -> Union[list[T], Future]:
+    """Return a new sorted list preserving relative order of equal elements.
 
-    return sorted(data, key=key, reverse=reverse)
+    Dispatches to hpx::stable_sort.  The same GIL note as :func:`sort` applies.
+
+    With a ``task``-tagged policy a :class:`~hpyx.futures.Future` is returned.
+    """
+    _runtime.ensure_started()
+    items = list(data)
+    kind, _, chunk, chunk_size = _token_fields(policy)
+    if policy.task:
+        return async_(_core.parallel.sort, kind, False, chunk, chunk_size, items, key, reverse, True)
+    return _core.parallel.sort(kind, False, chunk, chunk_size, items, key, reverse, True)
 
 
 # ---------------------------------------------------------------------------

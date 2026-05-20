@@ -6,9 +6,18 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/string.h>
+#include <hpx/algorithm.hpp>
+#include <hpx/execution.hpp>
 
+// Python.h must come after HPX/nanobind headers to avoid macro conflicts.
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+#include <atomic>
 #include <cstdint>
+#include <numeric>
 #include <stdexcept>
+#include <vector>
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -23,6 +32,12 @@ void ensure_runtime() {
             "HPyX runtime is not running. Call hpyx.init() first.");
     }
 }
+
+// kind constants mirror execution.py _KIND_* values
+constexpr int KIND_SEQ      = 0;
+constexpr int KIND_PAR      = 1;
+constexpr int KIND_PAR_UNSEQ = 2;
+// KIND_UNSEQ = 3 maps to seq execution at the C++ layer
 
 }  // namespace
 
@@ -55,6 +70,117 @@ static void parallel_for_each(
     }
 }
 
+// sort_impl / stable_sort_impl
+//
+// Implements hpx::sort and hpx::stable_sort over a Python list of arbitrary
+// objects.  Comparison requires the GIL, so hpx::execution::par dispatches
+// HPX's parallel sort infrastructure but comparisons serialize through GIL.
+// The real throughput gain for pure-C++ numeric types lives in hpyx.kernels.
+//
+// Algorithm:
+//   1. Snapshot borrowed PyObject* pointers from data (list stays alive).
+//   2. If key_fn is provided, compute a parallel key array (new references).
+//   3. Sort a std::vector<size_t> of indices using the computed comparator,
+//      dispatching to hpx::sort (par) or hpx::stable_sort (par / seq).
+//   4. Build and return the output list in sorted-index order.
+//   5. Comparator errors are captured via an atomic flag; first failure
+//      raises TypeError after the sort completes.
+//
+// GIL contract: GIL is held on entry.  Released before hpx::sort call via
+// nb::gil_scoped_release; comparator re-acquires per comparison via
+// PyGILState_Ensure/Release.
+static nb::list sort_impl(
+    int kind, bool /*task_flag*/, int /*chunk*/, std::size_t /*chunk_size*/,
+    nb::list data, nb::handle key_fn, bool reverse, bool stable)
+{
+    ensure_runtime();
+
+    auto n = static_cast<std::size_t>(PyList_GET_SIZE(data.ptr()));
+    if (n <= 1) return data;
+
+    // Snapshot borrowed item refs; list stays alive for the duration.
+    std::vector<PyObject*> items(n);
+    for (std::size_t i = 0; i < n; ++i)
+        items[i] = PyList_GET_ITEM(data.ptr(), static_cast<Py_ssize_t>(i));
+
+    // Compute key objects (new references); must happen with GIL held.
+    const bool has_key = !key_fn.is_none();
+    std::vector<PyObject*> keys;
+    if (has_key) {
+        keys.resize(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            PyObject* k = PyObject_CallOneArg(key_fn.ptr(), items[i]);
+            if (!k) {
+                // Cleanup keys computed so far then propagate.
+                for (std::size_t j = 0; j < i; ++j) Py_DECREF(keys[j]);
+                throw nb::python_error();
+            }
+            keys[i] = k;
+        }
+    }
+
+    // Index vector to sort; avoids moving Python objects.
+    std::vector<std::size_t> idx(n);
+    std::iota(idx.begin(), idx.end(), 0);
+
+    // Error flag: set inside comparator when PyObject_RichCompareBool fails.
+    // Comparisons serialize through the GIL so non-atomic access is safe in
+    // practice, but atomic avoids UB under the C++ memory model.
+    std::atomic<bool> cmp_error{false};
+
+    auto cmp = [&](std::size_t a, std::size_t b) -> bool {
+        if (cmp_error.load(std::memory_order_relaxed)) return a < b;
+        PyGILState_STATE gs = PyGILState_Ensure();
+        PyObject* pa = has_key ? keys[a] : items[a];
+        PyObject* pb = has_key ? keys[b] : items[b];
+        int r = reverse
+            ? PyObject_RichCompareBool(pb, pa, Py_LT)  // b < a → descending
+            : PyObject_RichCompareBool(pa, pb, Py_LT); // a < b → ascending
+        if (r < 0) {
+            PyErr_Clear();
+            cmp_error.store(true, std::memory_order_relaxed);
+            PyGILState_Release(gs);
+            return a < b;  // dummy ordering; result discarded after error
+        }
+        PyGILState_Release(gs);
+        return r > 0;
+    };
+
+    // Release GIL before entering HPX; comparator re-acquires per comparison.
+    const bool use_par = (kind == KIND_PAR || kind == KIND_PAR_UNSEQ);
+    try {
+        nb::gil_scoped_release release;
+        if (stable) {
+            if (use_par)
+                hpx::stable_sort(hpx::execution::par, idx.begin(), idx.end(), cmp);
+            else
+                hpx::stable_sort(hpx::execution::seq, idx.begin(), idx.end(), cmp);
+        } else {
+            if (use_par)
+                hpx::sort(hpx::execution::par, idx.begin(), idx.end(), cmp);
+            else
+                hpx::sort(hpx::execution::seq, idx.begin(), idx.end(), cmp);
+        }
+    } catch (...) {
+        if (has_key) for (std::size_t i = 0; i < n; ++i) Py_XDECREF(keys[i]);
+        throw;
+    }
+
+    if (has_key) for (std::size_t i = 0; i < n; ++i) Py_DECREF(keys[i]);
+
+    if (cmp_error.load()) {
+        PyErr_SetString(PyExc_TypeError, "sort: '<' not supported between instances");
+        throw nb::python_error();
+    }
+
+    // Build the output list.
+    PyObject* out_raw = PyList_New(static_cast<Py_ssize_t>(n));
+    if (!out_raw) throw nb::python_error();
+    for (std::size_t i = 0; i < n; ++i)
+        PyList_SET_ITEM(out_raw, static_cast<Py_ssize_t>(i), Py_NewRef(items[idx[i]]));
+    return nb::steal<nb::list>(out_raw);
+}
+
 void register_bindings(nb::module_& m) {
     m.def("for_loop", &parallel_for_loop,
           "kind"_a, "task"_a, "chunk"_a, "chunk_size"_a,
@@ -62,6 +188,9 @@ void register_bindings(nb::module_& m) {
     m.def("for_each", &parallel_for_each,
           "kind"_a, "task"_a, "chunk"_a, "chunk_size"_a,
           "iterable"_a, "body"_a);
+    m.def("sort", &sort_impl,
+          "kind"_a, "task"_a, "chunk"_a, "chunk_size"_a,
+          "data"_a, "key"_a.none(), "reverse"_a, "stable"_a);
 }
 
 }  // namespace hpyx::parallel
