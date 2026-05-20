@@ -82,18 +82,31 @@ if(APPLE)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
 endif()
 
+option(HPYX_BUILD_CONTRIBUTOR_EXAMPLE "Build the docs/adding-a-binding worked example" ON)
+
+set(_hpyx_core_sources
+    src/_core/bind.cpp
+    src/_core/runtime.cpp
+    src/_core/algorithms.cpp
+    src/_core/futures.cpp
+    src/_core/kernels.cpp
+    src/_core/parallel.cpp
+    src/_core/tracing.cpp
+)
+if(HPYX_BUILD_CONTRIBUTOR_EXAMPLE)
+    list(APPEND _hpyx_core_sources src/_core/contributor_example.cpp)
+endif()
+
 # Create the Python module from the source file
 nanobind_add_module(
   _core
   FREE_THREADED
-  src/_core/bind.cpp
-  src/_core/runtime.cpp
-  src/_core/algorithms.cpp
-  src/_core/futures.cpp
-  src/_core/kernels.cpp
-  src/_core/parallel.cpp
-  src/_core/tracing.cpp
+  ${_hpyx_core_sources}
 )
+
+if(HPYX_BUILD_CONTRIBUTOR_EXAMPLE)
+    target_compile_definitions(_core PRIVATE HPYX_HAS_CONTRIB_EXAMPLE=1)
+endif()
 
 # TODO: Add new modules here, maybe even HPX modules?
 # # Define a list of targets to link against the required libraries.

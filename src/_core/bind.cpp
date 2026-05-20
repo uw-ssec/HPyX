@@ -18,6 +18,9 @@
 #include "kernels.hpp"
 #include "parallel.hpp"
 #include "tracing.hpp"
+#ifdef HPYX_HAS_CONTRIB_EXAMPLE
+#include "contributor_example.hpp"
+#endif
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -43,6 +46,11 @@ NB_MODULE(_core, m)
 
     auto m_tracing = m.def_submodule("tracing");
     hpyx::tracing::register_bindings(m_tracing);
+
+#ifdef HPYX_HAS_CONTRIB_EXAMPLE
+    auto m_contrib = m.def_submodule("contributor_example");
+    hpyx::contrib::register_bindings(m_contrib);
+#endif
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
