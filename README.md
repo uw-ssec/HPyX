@@ -13,6 +13,18 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/uw-ssec/HPyX/main.svg)](https://results.pre-commit.ci/latest/github/uw-ssec/HPyX/main)
 [![CI](https://github.com/uw-ssec/HPyX/actions/workflows/ci.yml/badge.svg)](https://github.com/uw-ssec/HPyX/actions/workflows/ci.yml)
 
+## Quick links
+
+- **New to HPyX?** Pick a guide for your background:
+  - [Scientific Python users](docs/user-guides/scientific-python.md)
+  - [concurrent.futures users](docs/user-guides/concurrent-futures.md)
+  - [HPX-familiar users](docs/user-guides/hpx-native.md)
+- **Integrating with:** [dask](docs/user-guides/dask-integration.md) · [asyncio](docs/user-guides/asyncio.md)
+- **Running on free-threaded 3.13t:** [guide](docs/user-guides/free-threaded.md)
+- **Diagnostics and tracing:** [guide](docs/user-guides/diagnostics.md)
+- **Coming from v0.x?** See the [migration guide](docs/migration-0.x-to-1.0.md).
+- **Contributing?** Start with [adding-a-binding.md](docs/adding-a-binding.md).
+
 ## Project Overview
 
 HPyX provides Python bindings for the HPX C++ Parallelism Library using Nanobind
