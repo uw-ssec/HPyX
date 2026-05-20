@@ -284,11 +284,13 @@ def test_transform_reduce_empty():
     assert result == 0
 
 
-def test_transform_reduce_task_raises():
-    with pytest.raises(NotImplementedError):
-        hpyx.parallel.transform_reduce(
-            seq(task), [1], init=0, reduce_op=operator.add, transform_op=lambda x: x
-        )
+def test_transform_reduce_task_returns_future():
+    from hpyx.futures import Future
+    fut = hpyx.parallel.transform_reduce(
+        seq(task), [1, 2, 3], init=0, reduce_op=operator.add, transform_op=lambda x: x * x
+    )
+    assert isinstance(fut, Future)
+    assert fut.result() == 14  # 1 + 4 + 9
 
 
 def test_transform_reduce_keyword_only_enforcement():
