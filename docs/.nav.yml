@@ -4,5 +4,16 @@ nav:
       - Quickstart: quickstart.ipynb
       - Usage Guide: usage.md
       - Architecture Decisions: architecture-decisions.md
+  - User Guides:
+      - Scientific Python: user-guides/scientific-python.md
+      - concurrent.futures: user-guides/concurrent-futures.md
+      - HPX Native: user-guides/hpx-native.md
+      - Dask Integration: user-guides/dask-integration.md
+      - asyncio: user-guides/asyncio.md
+      - Diagnostics: user-guides/diagnostics.md
+      - Free-Threaded Python: user-guides/free-threaded.md
+  - Migration: migration-v2025.8.28-to-v2026.5.20.md
   - API Reference: reference/api.md
-  - Contributing: CONTRIBUTING.md
+  - Contributing:
+      - Contributing Guide: CONTRIBUTING.md
+      - Adding a Binding: adding-a-binding.md
