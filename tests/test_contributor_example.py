@@ -4,21 +4,22 @@ Keeps the docs in sync with reality. If this test fails, the guide's
 code blocks are wrong.
 """
 
+import os
+
 import numpy as np
 import pytest
 
-try:
-    from hpyx._core import contributor_example as contrib
+# Allow an explicit opt-out for intentional no-example builds (e.g. minimal
+# wheels).  In normal CI the variable is unset, so a missing binding surfaces
+# as a hard ImportError rather than a silent skip.
+_skip_reason = os.getenv("HPYX_SKIP_CONTRIBUTOR_EXAMPLE")
+if _skip_reason:
+    pytest.skip(
+        f"Contributor example skipped: {_skip_reason}",
+        allow_module_level=True,
+    )
 
-    HAS_CONTRIB = True
-except ImportError:
-    HAS_CONTRIB = False
-
-pytestmark = pytest.mark.skipif(
-    not HAS_CONTRIB,
-    reason="Contributor example binding not built "
-    "(set HPYX_BUILD_CONTRIBUTOR_EXAMPLE=ON)",
-)
+from hpyx._core import contributor_example as contrib  # noqa: E402
 
 # Policy constants matching hpyx.execution._KIND_* and _CHUNK_NONE
 _KIND_PAR = 1

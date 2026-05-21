@@ -560,6 +560,42 @@ def test_stable_sort_task_par_returns_future():
     assert fut.result() == [(1, "b"), (1, "a"), (2, "a")]
 
 
+def test_sort_comparator_exception_preserved_seq():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.sort(seq, [Boom(), Boom(), Boom()])
+
+
+def test_sort_comparator_exception_preserved_par():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.sort(par, [Boom(), Boom(), Boom()])
+
+
+def test_stable_sort_comparator_exception_preserved_seq():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.stable_sort(seq, [Boom(), Boom(), Boom()])
+
+
+def test_stable_sort_comparator_exception_preserved_par():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.stable_sort(par, [Boom(), Boom(), Boom()])
+
+
 # ===========================================================================
 # fill / fill_n / copy / copy_if / iota
 # ===========================================================================

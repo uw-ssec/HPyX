@@ -61,9 +61,11 @@ jobs:
           cache: true
 
       - name: Build vendor HPX and run Debug test suite
+        env:
+          CMAKE_BUILD_TYPE: Debug
         run: |
           pixi run -e py313t-src install-latest-lib
-          CMAKE_BUILD_TYPE=Debug pixi run -e py313t-src pytest tests/ --tb=short -q
+          pixi run -e py313t-src pytest tests/ --tb=short -q
 
   nightly-benchmarks:
     name: Nightly benchmark suite

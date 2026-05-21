@@ -89,6 +89,11 @@ static void parallel_for_each(
 // GIL contract: GIL is held on entry.  Released before hpx::sort call via
 // nb::gil_scoped_release; comparator re-acquires per comparison via
 // PyGILState_Ensure/Release.
+//
+// Exception contract: when a comparator fails, the original Python exception
+// is captured via PyErr_GetRaisedException and re-raised after the sort
+// completes.  Subsequent comparator failures (after the first) are cleared.
+// The original exception type and message are always preserved.
 static nb::list sort_impl(
     int kind, bool /*task_flag*/, int /*chunk*/, std::size_t /*chunk_size*/,
     nb::list data, nb::handle key_fn, bool reverse, bool stable)
@@ -127,6 +132,9 @@ static nb::list sort_impl(
     // Comparisons serialize through the GIL so non-atomic access is safe in
     // practice, but atomic avoids UB under the C++ memory model.
     std::atomic<bool> cmp_error{false};
+    // Saved exception from first comparator failure; re-raised after the sort.
+    // Written only once (guarded by cmp_error exchange); read after HPX joins.
+    PyObject* saved_exc = nullptr;
 
     auto cmp = [&](std::size_t a, std::size_t b) -> bool {
         if (cmp_error.load(std::memory_order_relaxed)) return a < b;
@@ -137,8 +145,13 @@ static nb::list sort_impl(
             ? PyObject_RichCompareBool(pb, pa, Py_LT)  // b < a → descending
             : PyObject_RichCompareBool(pa, pb, Py_LT); // a < b → ascending
         if (r < 0) {
-            PyErr_Clear();
-            cmp_error.store(true, std::memory_order_relaxed);
+            if (!cmp_error.exchange(true, std::memory_order_relaxed)) {
+                // First failure: steal the exception so we can re-raise it
+                // with its original type and message intact.
+                saved_exc = PyErr_GetRaisedException();
+            } else {
+                PyErr_Clear();
+            }
             PyGILState_Release(gs);
             return a < b;  // dummy ordering; result discarded after error
         }
@@ -163,13 +176,14 @@ static nb::list sort_impl(
         }
     } catch (...) {
         if (has_key) for (std::size_t i = 0; i < n; ++i) Py_XDECREF(keys[i]);
+        Py_XDECREF(saved_exc);  // release saved exc if HPX threw independently
         throw;
     }
 
     if (has_key) for (std::size_t i = 0; i < n; ++i) Py_DECREF(keys[i]);
 
     if (cmp_error.load()) {
-        PyErr_SetString(PyExc_TypeError, "sort: '<' not supported between instances");
+        PyErr_SetRaisedException(saved_exc);  // steals ref; restores original exception
         throw nb::python_error();
     }
 
