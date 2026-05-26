@@ -2,8 +2,10 @@
 and iterables.
 
 Every function takes a policy (from ``hpyx.execution``) as the first
-argument.  Task-tagged policies (e.g. ``par(task)``) are reserved for a
-future release; passing them currently raises ``NotImplementedError``.
+argument.  Task-tagged policies (e.g. ``par(task)``) are supported by
+:func:`sort`, :func:`stable_sort`, and :func:`transform_reduce`, which return
+a :class:`~hpyx.futures.Future`; other algorithms raise ``NotImplementedError``
+for task-tagged policies.
 
 For ``par`` and ``par_unseq`` policies with Python callbacks, each iteration
 is submitted as an independent ``hpyx.async_`` task on an HPX worker thread.
@@ -117,6 +119,21 @@ def reduce[T](
     return functools.reduce(op, items, init)
 
 
+def _transform_reduce_body(
+    policy: Policy,
+    items: list,
+    init,
+    reduce_op,
+    transform_op,
+):
+    if policy.name in ("par", "par_unseq"):
+        futs = [async_(transform_op, item) for item in items]
+        transformed = [f.result() for f in futs]
+    else:
+        transformed = [transform_op(item) for item in items]
+    return functools.reduce(reduce_op, transformed, init)
+
+
 def transform_reduce[T, U](
     policy: Policy,
     iterable: Iterable[T],
@@ -124,19 +141,17 @@ def transform_reduce[T, U](
     init: U,
     reduce_op: Callable[[U, U], U],
     transform_op: Callable[[T], U],
-) -> U:
-    """Transform each element with ``transform_op`` then reduce with ``reduce_op``."""
-    _runtime.ensure_started()
-    if policy.task:
-        raise NotImplementedError(_task_not_supported("transform_reduce"))
+) -> Union[U, Future]:
+    """Transform each element with ``transform_op`` then reduce with ``reduce_op``.
 
+    With a ``task``-tagged policy the entire computation is submitted as a
+    single HPX task and a :class:`~hpyx.futures.Future` is returned.
+    """
+    _runtime.ensure_started()
     items = list(iterable)
-    if policy.name in ("par", "par_unseq"):
-        futs = [async_(transform_op, item) for item in items]
-        transformed = [f.result() for f in futs]
-    else:
-        transformed = [transform_op(item) for item in items]
-    return functools.reduce(reduce_op, transformed, init)
+    if policy.task:
+        return async_(_transform_reduce_body, policy, items, init, reduce_op, transform_op)
+    return _transform_reduce_body(policy, items, init, reduce_op, transform_op)
 
 
 # ---------------------------------------------------------------------------
@@ -304,13 +319,24 @@ def sort[T](
     *,
     key: Callable[[T], Any] | None = None,
     reverse: bool = False,
-) -> list[T]:
-    """Return a new sorted list."""
-    _runtime.ensure_started()
-    if policy.task:
-        raise NotImplementedError(_task_not_supported("sort"))
+) -> Union[list[T], Future]:
+    """Return a new sorted list, dispatching to hpx::sort.
 
-    return sorted(data, key=key, reverse=reverse)
+    For ``par`` / ``par_unseq`` policies, hpx::sort with a parallel execution
+    policy is used.  With Python-object comparisons the GIL still serializes
+    individual comparisons, so throughput gains over ``seq`` are visible only
+    when the collection contains types whose C++ ``<`` operator can run GIL-free
+    (see hpyx.kernels for pure-C++ numeric kernels).
+
+    With a ``task``-tagged policy the sort is submitted as a single HPX task and
+    a :class:`~hpyx.futures.Future` is returned.
+    """
+    _runtime.ensure_started()
+    items = list(data)
+    kind, _, chunk, chunk_size = _token_fields(policy)
+    if policy.task:
+        return async_(_core.parallel.sort, kind, False, chunk, chunk_size, items, key, reverse, False)
+    return _core.parallel.sort(kind, False, chunk, chunk_size, items, key, reverse, False)
 
 
 def stable_sort[T](
@@ -319,13 +345,19 @@ def stable_sort[T](
     *,
     key: Callable[[T], Any] | None = None,
     reverse: bool = False,
-) -> list[T]:
-    """Return a new sorted list (stable)."""
-    _runtime.ensure_started()
-    if policy.task:
-        raise NotImplementedError(_task_not_supported("stable_sort"))
+) -> Union[list[T], Future]:
+    """Return a new sorted list preserving relative order of equal elements.
 
-    return sorted(data, key=key, reverse=reverse)
+    Dispatches to hpx::stable_sort.  The same GIL note as :func:`sort` applies.
+
+    With a ``task``-tagged policy a :class:`~hpyx.futures.Future` is returned.
+    """
+    _runtime.ensure_started()
+    items = list(data)
+    kind, _, chunk, chunk_size = _token_fields(policy)
+    if policy.task:
+        return async_(_core.parallel.sort, kind, False, chunk, chunk_size, items, key, reverse, True)
+    return _core.parallel.sort(kind, False, chunk, chunk_size, items, key, reverse, True)
 
 
 # ---------------------------------------------------------------------------

@@ -284,11 +284,13 @@ def test_transform_reduce_empty():
     assert result == 0
 
 
-def test_transform_reduce_task_raises():
-    with pytest.raises(NotImplementedError):
-        hpyx.parallel.transform_reduce(
-            seq(task), [1], init=0, reduce_op=operator.add, transform_op=lambda x: x
-        )
+def test_transform_reduce_task_returns_future():
+    from hpyx.futures import Future
+    fut = hpyx.parallel.transform_reduce(
+        seq(task), [1, 2, 3], init=0, reduce_op=operator.add, transform_op=lambda x: x * x
+    )
+    assert isinstance(fut, Future)
+    assert fut.result() == 14  # 1 + 4 + 9
 
 
 def test_transform_reduce_keyword_only_enforcement():
@@ -465,8 +467,17 @@ def test_sort_par():
     assert hpyx.parallel.sort(par, [3, 1, 2]) == [1, 2, 3]
 
 
+def test_sort_par_unseq():
+    assert hpyx.parallel.sort(par_unseq, [5, 3, 1, 4, 2]) == [1, 2, 3, 4, 5]
+
+
 def test_sort_with_key():
     result = hpyx.parallel.sort(seq, ["bb", "a", "ccc"], key=len)
+    assert result == ["a", "bb", "ccc"]
+
+
+def test_sort_with_key_par():
+    result = hpyx.parallel.sort(par, ["bb", "a", "ccc"], key=len)
     assert result == ["a", "bb", "ccc"]
 
 
@@ -474,14 +485,35 @@ def test_sort_reverse():
     assert hpyx.parallel.sort(seq, [1, 3, 2], reverse=True) == [3, 2, 1]
 
 
+def test_sort_reverse_par():
+    assert hpyx.parallel.sort(par, [1, 3, 2], reverse=True) == [3, 2, 1]
+
+
 def test_sort_empty():
     assert hpyx.parallel.sort(seq, []) == []
     assert hpyx.parallel.sort(par, []) == []
 
 
-def test_sort_task_raises():
-    with pytest.raises(NotImplementedError):
-        hpyx.parallel.sort(seq(task), [1])
+def test_sort_large():
+    import random
+    data = list(range(1000))
+    shuffled = data[:]
+    random.shuffle(shuffled)
+    assert hpyx.parallel.sort(par, shuffled) == data
+
+
+def test_sort_task_returns_future():
+    fut = hpyx.parallel.sort(seq(task), [3, 1, 2])
+    from hpyx.futures import Future
+    assert isinstance(fut, Future)
+    assert fut.result() == [1, 2, 3]
+
+
+def test_sort_task_par_returns_future():
+    fut = hpyx.parallel.sort(par(task), [5, 2, 4, 1, 3])
+    from hpyx.futures import Future
+    assert isinstance(fut, Future)
+    assert fut.result() == [1, 2, 3, 4, 5]
 
 
 def test_stable_sort_seq():
@@ -492,19 +524,76 @@ def test_stable_sort_par():
     assert hpyx.parallel.stable_sort(par, [3, 1, 2]) == [1, 2, 3]
 
 
+def test_stable_sort_par_unseq():
+    assert hpyx.parallel.stable_sort(par_unseq, [5, 3, 1, 4, 2]) == [1, 2, 3, 4, 5]
+
+
 def test_stable_sort_preserves_order():
     data = [(1, "b"), (2, "a"), (1, "a")]
     result = hpyx.parallel.stable_sort(seq, data, key=lambda x: x[0])
     assert result == [(1, "b"), (1, "a"), (2, "a")]
 
 
+def test_stable_sort_preserves_order_par():
+    data = [(1, "b"), (2, "a"), (1, "a")]
+    result = hpyx.parallel.stable_sort(par, data, key=lambda x: x[0])
+    assert result == [(1, "b"), (1, "a"), (2, "a")]
+
+
 def test_stable_sort_empty():
     assert hpyx.parallel.stable_sort(seq, []) == []
+    assert hpyx.parallel.stable_sort(par, []) == []
 
 
-def test_stable_sort_task_raises():
-    with pytest.raises(NotImplementedError):
-        hpyx.parallel.stable_sort(seq(task), [1])
+def test_stable_sort_task_returns_future():
+    fut = hpyx.parallel.stable_sort(seq(task), [3, 1, 2])
+    from hpyx.futures import Future
+    assert isinstance(fut, Future)
+    assert fut.result() == [1, 2, 3]
+
+
+def test_stable_sort_task_par_returns_future():
+    data = [(1, "b"), (2, "a"), (1, "a")]
+    fut = hpyx.parallel.stable_sort(par(task), data, key=lambda x: x[0])
+    from hpyx.futures import Future
+    assert isinstance(fut, Future)
+    assert fut.result() == [(1, "b"), (1, "a"), (2, "a")]
+
+
+def test_sort_comparator_exception_preserved_seq():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.sort(seq, [Boom(), Boom(), Boom()])
+
+
+def test_sort_comparator_exception_preserved_par():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.sort(par, [Boom(), Boom(), Boom()])
+
+
+def test_stable_sort_comparator_exception_preserved_seq():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.stable_sort(seq, [Boom(), Boom(), Boom()])
+
+
+def test_stable_sort_comparator_exception_preserved_par():
+    class Boom:
+        def __lt__(self, other):
+            raise ValueError("custom comparator error")
+
+    with pytest.raises(ValueError, match="custom comparator error"):
+        hpyx.parallel.stable_sort(par, [Boom(), Boom(), Boom()])
 
 
 # ===========================================================================

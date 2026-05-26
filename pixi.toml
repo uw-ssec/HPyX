@@ -14,6 +14,12 @@ version = "2025.8.28"
 # Define various development environments with different feature combinations
 [environments]
 py313t = { features = ["py313t", "libhpx", "hpyx"], solve-group = "py313t" }
+test-py313 = { features = [
+    "py313",
+    "libhpx",
+    "hpyx",
+    "test",
+], solve-group = "py313" }
 test-py313t = { features = [
     "py313t",
     "libhpx",

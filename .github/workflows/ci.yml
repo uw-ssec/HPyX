@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - main
+  schedule:
+    - cron: '17 6 * * *'   # 06:17 UTC daily (nightly jobs)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,12 +21,13 @@ env:
 
 jobs:
   checks:
-    name: Test on ${{ matrix.runs-on }}
+    name: Test on ${{ matrix.runs-on }} / ${{ matrix.python }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
         runs-on: [ubuntu-latest, macos-14]
+        python: [py313, py313t]
         # Note: Windows support is experimental and requires additional setup.
         # Uncomment the following lines to enable Windows testing.
         # include:
@@ -40,4 +43,49 @@ jobs:
           pixi-version: v0.67.2
           cache: true
       - name: Test package
-        run: pixi run test
+        run: pixi run -e test-${{ matrix.python }} run-test
+
+  nightly-vendor-debug:
+    name: Nightly vendor HPX + Debug build
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: prefix-dev/setup-pixi@v0.9.5
+        with:
+          pixi-version: v0.67.2
+          cache: true
+
+      - name: Build vendor HPX and run Debug test suite
+        env:
+          CMAKE_BUILD_TYPE: Debug
+        run: |
+          pixi run -e py313t-src install-latest-lib
+          pixi run -e py313t-src pytest tests/ --tb=short -q
+
+  nightly-benchmarks:
+    name: Nightly benchmark suite
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: prefix-dev/setup-pixi@v0.9.5
+        with:
+          pixi-version: v0.67.2
+          cache: true
+
+      - name: Run benchmark suite
+        run: bash scripts/run_bench_local.sh bench --benchmark-json=benchmark.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: benchmark.json
