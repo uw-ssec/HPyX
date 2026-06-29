@@ -46,6 +46,8 @@ jobs:
           cache: true
 
       - name: Build wheels
+        env:
+          CMAKE_GENERATOR: Ninja
         run: pixi run -e build-py313t build-wheel-and-test
       - name: Auditwheel repair (Linux only)
         if: matrix.os == 'linux-intel'
