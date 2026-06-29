@@ -30,7 +30,7 @@ jobs:
           - os: linux-intel
             runs-on: ubuntu-latest
           - os: windows-intel
-            runs-on: windows-latest
+            runs-on: windows-2022
           - os: macos-14-arm
             runs-on: macos-14
           - os: macos-15-arm
@@ -46,8 +46,6 @@ jobs:
           cache: true
 
       - name: Build wheels
-        env:
-          CMAKE_GENERATOR: Ninja
         run: pixi run -e build-py313t build-wheel-and-test
       - name: Auditwheel repair (Linux only)
         if: matrix.os == 'linux-intel'
