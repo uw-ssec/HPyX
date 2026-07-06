@@ -45,6 +45,10 @@ jobs:
           pixi-version: v0.67.2
           cache: true
 
+      - name: Install Python 3.12 dev headers (linux only)
+        if: matrix.os == 'linux-intel'
+        run: sudo apt-get install -y python3.12-dev
+
       - name: Build wheels
         run: pixi run -e build-py313t build-wheel-and-test
       - name: Auditwheel repair (Linux only)
