@@ -167,6 +167,7 @@ build = ">=1.2.2.post1, <2"
 [feature.build.dependencies]
 scikit-build-core = "*"
 auditwheel = "*"
+numpy = ">=1.26"
 
 [feature.build.tasks.build-sdist]
 cmd = ["python", "-m", "build", ".", "--sdist", "--outdir", "dist"]
@@ -184,7 +185,7 @@ depends-on = [
 ]
 
 [feature.build.tasks._install-wheel]
-cmd = "pip install --force-reinstall --verbose wheelhouse/*.whl"
+cmd = "pip install --force-reinstall --no-deps --verbose wheelhouse/*.whl"
 description = "Install the built wheel package"
 
 [feature.build.tasks._print-versions]
