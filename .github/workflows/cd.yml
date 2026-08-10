@@ -40,7 +40,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
-      - uses: prefix-dev/setup-pixi@v0.9.6
+      - uses: prefix-dev/setup-pixi@v0.10.1
         with:
           pixi-version: v0.67.2
           cache: true
@@ -71,7 +71,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: prefix-dev/setup-pixi@v0.9.6
+      - uses: prefix-dev/setup-pixi@v0.10.1
         with:
           pixi-version: v0.67.2
           cache: true
@@ -108,7 +108,7 @@ jobs:
           ls -ltrh dist
 
       - name: Publish to Test PyPI
-        uses: pypa/gh-action-pypi-publish@v1.14.0
+        uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
           verbose: true
